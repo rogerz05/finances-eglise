@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Caisse de l’Église</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#14213d">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Caisse">
 <style>
 :root{--bg:#eef2f7;--card:#fff;--ink:#14213d;--mut:#5b6678;--line:#d9e0ea;--pri:#1d4e89;--gold:#b9852b;--ok:#1f8a5b;--bad:#c0392b;--hero:#14213d;--herot:#fff;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -223,6 +228,7 @@ document.addEventListener("change",e=>{
 setInterval(async()=>{if(!S.me||document.hidden||ED)return;
   if([...document.querySelectorAll("#app form input[name=a],#app form input[name=n],#app form input[name=c]")].some(i=>i.value))return;
   try{await loadAll();render()}catch(e){}},30000);
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
 </html>
