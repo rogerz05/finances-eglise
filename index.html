@@ -78,7 +78,7 @@ tr.t td{font-weight:700}
 <nav id="tabs" aria-label="Sections"></nav>
 <script>
 const URL_="https://tkrbwbxuoxlbfrwjityb.supabase.co",KEY="sb_publishable_PbaIMXJzbj3c2kvGeuclQg_X4OqiKrl";
-let S={in:[],out:[],budget:{},proj:[],name:"",me:null,admins:[],cats:[],journal:[]},CODE="",ERR="";
+let S={in:[],out:[],budget:{},proj:[],name:"",me:null,admins:[],cats:[],icats:[],journal:[]},CODE="",ERR="";
 try{CODE=localStorage.getItem("fin-code")||""}catch(e){}
 let LAST=null,NOTE=null;
 try{const v=localStorage.getItem("fin-last");if(v!==null)LAST=+v}catch(e){}
@@ -97,7 +97,7 @@ function journal(){
   const fmt=t=>new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
   return `<div class="card"><h2>Journal des actions</h2><p class="mut">Les 100 dernières actions de tous les administrateurs.</p>${S.journal.length?S.journal.map(j=>`<div class="row"><div><b>${esc(j.a)}</b><small>${esc(j.d||"")}</small><small>${esc(j.par)} · ${fmt(j.t)}</small></div></div>`).join(""):'<p class="mut">Aucune action enregistrée pour le moment.</p>'}</div>`;
 }
-function catsCard(){return `<div class="card"><h2>Rubriques de dépenses</h2><p class="mut">Retirer une rubrique ne modifie pas les dépenses déjà enregistrées.</p>${ocats().map(c=>`<div class="row"><div>${esc(c)}</div><button class="x" data-a="dc" data-n="${esc(c)}">Retirer</button></div>`).join("")}<form data-f="cat" style="margin-top:12px"><label>Nouvelle rubrique<input name="n" required maxlength="40"></label><button class="pri">Ajouter la rubrique</button></form></div>`}
+function catsCard(k){const isIn=k==="in",L=isIn?icats():ocats();return `<div class="card"><h2>Rubriques ${isIn?"d’entrées":"de dépenses"}</h2><p class="mut">Retirer une rubrique ne modifie pas les ${isIn?"entrées":"dépenses"} déjà enregistrées.</p>${L.map(c=>`<div class="row"><div>${esc(c)}</div><button class="x" data-a="dc" data-k="${k}" data-n="${esc(c)}">Retirer</button></div>`).join("")}<form data-f="cat" data-k="${k}" style="margin-top:12px"><label>Nouvelle rubrique<input name="n" required maxlength="40"></label><button class="pri">Ajouter la rubrique</button></form></div>`}
 async function rpc(fn,args){
   let r;try{r=await fetch(URL_+"/rest/v1/rpc/"+fn,{method:"POST",headers:{"Content-Type":"application/json",apikey:KEY},body:JSON.stringify(Object.assign({p_code:CODE},args||{}))})}catch(e){throw new Error("Connexion impossible. Vérifie ta connexion internet.")}
   const t=await r.text();let j=null;try{j=t?JSON.parse(t):null}catch(e){}
@@ -106,7 +106,7 @@ async function rpc(fn,args){
 }
 async function loadAll(){
   const d=await rpc("fin_load");
-  S={in:d.entries.filter(x=>x.kind==="in"),out:d.entries.filter(x=>x.kind==="out"),budget:d.budget||{},proj:d.projects,name:d.name||"",me:d.me,admins:d.admins||[],cats:d.cats||[],journal:d.journal||[]};
+  S={in:d.entries.filter(x=>x.kind==="in"),out:d.entries.filter(x=>x.kind==="out"),budget:d.budget||{},proj:d.projects,name:d.name||"",me:d.me,admins:d.admins||[],cats:d.cats||[],icats:d.icats||[],journal:d.journal||[]};
   const mx=S.journal.length?S.journal[0].id:0,fr=LAST===null?[]:S.journal.filter(j=>j.id>LAST&&j.par!==S.me.nom);
   LAST=Math.max(LAST||0,mx);try{localStorage.setItem("fin-last",String(LAST))}catch(e){}
   if(fr.length)notify(fr);
@@ -117,6 +117,8 @@ const IN_T=["Dîme","Offrande","Action de grâce","Don spécial","Autre"];
 const OUT_C=["Entretien du temple","Électricité et eau","Salaires et soutien","Œuvres sociales","Matériel et sono","Transport","Autre"];
 const PD="Projets et dettes";
 const ocats=()=>S.cats.length?S.cats:OUT_C;
+const icats=()=>S.icats.length?S.icats:IN_T;
+const allin=()=>[...new Set(icats().concat(S.in.map(x=>x.c)))];
 const allc=()=>[...new Set(ocats().concat(S.out.map(x=>x.c)))];
 const T=[["home","Accueil"],["in","Entrées"],["out","Dépenses"],["bud","Budget"],["proj","Projets"],["jr","Journal"],["rep","Rapport"]];
 const MN=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
@@ -139,7 +141,7 @@ function home(){
   const [y,m]=month.split("-").map(Number),data=[];
   for(let i=5;i>=0;i--){const k=ym(new Date(y,m-1-i,1));data.push([k,sum(S.in,k),sum(outs(),k)])}
   const mx=Math.max(1,...data.map(r=>Math.max(r[1],r[2])));
-  const rep=IN_T.map(t=>[t,sum(S.in.filter(x=>x.c===t),month)]).filter(r=>r[1]);
+  const rep=allin().map(t=>[t,sum(S.in.filter(x=>x.c===t),month)]).filter(r=>r[1]);
   const rec=S.in.map(x=>Object.assign({s:"in"},x)).concat(outs().map(x=>Object.assign({s:"out"},x))).filter(x=>x.d.startsWith(month)).sort((a,b)=>b.d.localeCompare(a.d)).slice(0,5);
   return mbar()+`<div class="hero"><small>Solde du mois</small><div class="big">${f(ei-eo)}</div>
   <div class="two"><div><small>Entrées</small><b>${f(ei)}</b></div><div><small>Sorties</small><b>${f(eo)}</b></div><div><small>En caisse depuis le début</small><b>${f(tot)}</b></div></div></div>
@@ -151,14 +153,14 @@ function home(){
 
 function list(k){
   const isIn=k==="in",arr=S[k].filter(x=>x.d.startsWith(month)).sort((a,b)=>b.d.localeCompare(a.d));
-  const o=(isIn?IN_T:ocats()).map(t=>`<option>${t}</option>`).join("");
+  const o=(isIn?icats():ocats()).map(t=>`<option>${t}</option>`).join("");
   return mbar()+`<form class="card" data-f="${k}"><h2>${isIn?"Nouvelle entrée":"Nouvelle dépense"}</h2>
   <label>Date<input type="date" name="d" value="${today()}" required></label>
   <label>${isIn?"Type":"Catégorie"}<select name="c">${o}</select></label>
   <label>Montant (FCFA)<input type="number" name="a" min="1" inputmode="numeric" required></label>
   <label>${isIn?"Donateur ou précision (facultatif)":"Détail (facultatif)"}<input name="n" maxlength="80"></label>
   <button class="pri">Enregistrer</button></form>
-  <div class="card"><h2>${isIn?"Entrées":"Dépenses"} du mois : ${f(sum(arr))}</h2>${arr.length?arr.map(x=>item(x,k)).join(""):`<p class="mut">Aucune ${isIn?"entrée":"dépense"} ce mois-ci. Utilise le formulaire ci-dessus.</p>`}</div>${!isIn&&S.me.principal?catsCard():""}`;
+  <div class="card"><h2>${isIn?"Entrées":"Dépenses"} du mois : ${f(sum(arr))}</h2>${arr.length?arr.map(x=>item(x,k)).join(""):`<p class="mut">Aucune ${isIn?"entrée":"dépense"} ce mois-ci. Utilise le formulaire ci-dessus.</p>`}</div>${S.me.principal?catsCard(k):""}`;
 }
 
 function budget(){
@@ -194,7 +196,7 @@ function rep(){
   const o=outs(),ei=sum(S.in,month),eo=sum(o,month);
   const tr=r=>`<tr><td>${r[0]}</td><td>${f(r[1])}</td></tr>`;
   return mbar()+`<div class="card"><h2>Rapport du mois</h2><table>
-  <tr class="t"><td colspan="2">Entrées</td></tr>${g(S.in,IN_T).map(tr).join("")||'<tr><td class="mut" colspan="2">Aucune</td></tr>'}
+  <tr class="t"><td colspan="2">Entrées</td></tr>${g(S.in,allin()).map(tr).join("")||'<tr><td class="mut" colspan="2">Aucune</td></tr>'}
   <tr class="t"><td>Total des entrées</td><td>${f(ei)}</td></tr>
   <tr class="t"><td colspan="2">Dépenses</td></tr>${g(o,allc().concat([PD])).map(tr).join("")||'<tr><td class="mut" colspan="2">Aucune</td></tr>'}
   <tr class="t"><td>Total des dépenses</td><td>${f(eo)}</td></tr>
@@ -232,7 +234,7 @@ document.addEventListener("click",e=>{
     if(a==="dp")act("fin_delete_project",{p_id:b.dataset.id});
     if(a==="up"){const p=S.proj.find(p=>p.id===b.dataset.id);p&&p.pay.length&&act("fin_delete_payment",{p_id:p.pay[p.pay.length-1].id})}
     if(a==="da")act("fin_delete_admin",{p_id:b.dataset.id});
-    if(a==="dc")act("fin_delete_category",{p_nom:b.dataset.n});
+    if(a==="dc")act("fin_delete_cat",{p_kind:b.dataset.k,p_nom:b.dataset.n});
   }
 });
 document.addEventListener("submit",async e=>{
@@ -242,7 +244,7 @@ document.addEventListener("submit",async e=>{
     await act(x?"fin_update_entry":"fin_add_entry",x?{p_id:x,p_d:v.d,p_c:v.c,p_a:+v.a,p_n:v.n.trim()}:{p_kind:k,p_d:v.d,p_c:v.c,p_a:+v.a,p_n:v.n.trim()})}
   else if(k==="proj")await act("fin_add_project",{p_n:v.n.trim(),p_k:v.k,p_t:+v.a});
   else if(k==="pay")await act("fin_add_payment",{p_project:f.dataset.id,p_d:v.d,p_a:+v.a,p_n:(v.n||"").trim()});
-  else if(k==="cat")await act("fin_add_category",{p_nom:v.n.trim()});
+  else if(k==="cat")await act("fin_add_cat",{p_kind:f.dataset.k,p_nom:v.n.trim()});
   else if(k==="adm")await act("fin_add_admin",{p_nom:v.n.trim(),p_newcode:v.c});
   else if(k==="chg"){ERR="";try{await rpc("fin_change_code",{p_new:v.c});CODE=v.c;try{localStorage.setItem("fin-code",CODE)}catch(x){}await loadAll()}catch(x){ERR=x.message}render()}
 });
