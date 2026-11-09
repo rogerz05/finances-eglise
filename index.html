@@ -65,20 +65,39 @@ table{width:100%;border-collapse:collapse;font-size:15px}
 td{padding:7px 0;border-top:1px solid var(--line)}
 td:last-child{text-align:right;white-space:nowrap}
 tr.t td{font-weight:700}
-#tabs{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(6,1fr);background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
-#tabs button{border:0;background:transparent;color:var(--mut);padding:14px 2px;font-size:12.5px}
+#tabs{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(7,1fr);background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+#tabs button{border:0;background:transparent;color:var(--mut);padding:14px 1px;font-size:11.5px}
 #tabs button.on{color:var(--pri);font-weight:700;box-shadow:inset 0 3px 0 var(--gold)}
 @media print{#tabs,.mb,.noprint{display:none!important}body{background:#fff;color:#000}}
 </style>
 </head>
 <body>
 <header><h1 id="ttl">Caisse de l’Église</h1><p>Dîmes, offrandes, dépenses, budget et projets</p></header>
+<div id="note" style="max-width:720px;margin:0 auto;padding:0 16px"></div>
 <main id="app"></main>
 <nav id="tabs" aria-label="Sections"></nav>
 <script>
 const URL_="https://tkrbwbxuoxlbfrwjityb.supabase.co",KEY="sb_publishable_PbaIMXJzbj3c2kvGeuclQg_X4OqiKrl";
-let S={in:[],out:[],budget:{},proj:[],name:"",me:null,admins:[]},CODE="",ERR="";
+let S={in:[],out:[],budget:{},proj:[],name:"",me:null,admins:[],cats:[],journal:[]},CODE="",ERR="";
 try{CODE=localStorage.getItem("fin-code")||""}catch(e){}
+let LAST=null,NOTE=null;
+try{const v=localStorage.getItem("fin-last");if(v!==null)LAST=+v}catch(e){}
+function beep(){try{const c=new(window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.15;o.start();o.stop(c.currentTime+.25)}catch(e){}}
+function drawNote(){
+  const n=NOTE,el=$("#note");
+  if(!n){el.innerHTML="";return}
+  const j=n[0];
+  el.innerHTML=`<div class="card" style="border-color:var(--gold)"><b>🔔 ${n.length===1?esc(j.par)+" : "+esc(j.a):n.length+" nouvelles actions"}</b>${n.length===1&&j.d?`<small class="mut" style="display:block">${esc(j.d)}</small>`:""}<p style="margin:10px 0 0"><button class="sec" data-t="jr">Voir le journal</button><button class="sec" data-a="dn">OK</button></p></div>`;
+}
+function notify(n){
+  NOTE=n;beep();drawNote();
+  try{if("Notification" in window&&Notification.permission==="granted"&&navigator.serviceWorker)navigator.serviceWorker.ready.then(r=>r.showNotification("Caisse de l’Église",{body:n[0].par+" : "+n[0].a+(n.length>1?" (+"+(n.length-1)+")":""),icon:"icon-192.png",tag:"caisse"}))}catch(e){}
+}
+function journal(){
+  const fmt=t=>new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+  return `<div class="card"><h2>Journal des actions</h2><p class="mut">Les 100 dernières actions de tous les administrateurs.</p>${S.journal.length?S.journal.map(j=>`<div class="row"><div><b>${esc(j.a)}</b><small>${esc(j.d||"")}</small><small>${esc(j.par)} · ${fmt(j.t)}</small></div></div>`).join(""):'<p class="mut">Aucune action enregistrée pour le moment.</p>'}</div>`;
+}
+function catsCard(){return `<div class="card"><h2>Rubriques de dépenses</h2><p class="mut">Retirer une rubrique ne modifie pas les dépenses déjà enregistrées.</p>${ocats().map(c=>`<div class="row"><div>${esc(c)}</div><button class="x" data-a="dc" data-n="${esc(c)}">Retirer</button></div>`).join("")}<form data-f="cat" style="margin-top:12px"><label>Nouvelle rubrique<input name="n" required maxlength="40"></label><button class="pri">Ajouter la rubrique</button></form></div>`}
 async function rpc(fn,args){
   let r;try{r=await fetch(URL_+"/rest/v1/rpc/"+fn,{method:"POST",headers:{"Content-Type":"application/json",apikey:KEY},body:JSON.stringify(Object.assign({p_code:CODE},args||{}))})}catch(e){throw new Error("Connexion impossible. Vérifie ta connexion internet.")}
   const t=await r.text();let j=null;try{j=t?JSON.parse(t):null}catch(e){}
@@ -87,14 +106,19 @@ async function rpc(fn,args){
 }
 async function loadAll(){
   const d=await rpc("fin_load");
-  S={in:d.entries.filter(x=>x.kind==="in"),out:d.entries.filter(x=>x.kind==="out"),budget:d.budget||{},proj:d.projects,name:d.name||"",me:d.me,admins:d.admins||[]};
+  S={in:d.entries.filter(x=>x.kind==="in"),out:d.entries.filter(x=>x.kind==="out"),budget:d.budget||{},proj:d.projects,name:d.name||"",me:d.me,admins:d.admins||[],cats:d.cats||[],journal:d.journal||[]};
+  const mx=S.journal.length?S.journal[0].id:0,fr=LAST===null?[]:S.journal.filter(j=>j.id>LAST&&j.par!==S.me.nom);
+  LAST=Math.max(LAST||0,mx);try{localStorage.setItem("fin-last",String(LAST))}catch(e){}
+  if(fr.length)notify(fr);
 }
 async function act(fn,args){ERR="";try{await rpc(fn,args);await loadAll()}catch(e){ERR=e.message}render()}
 function login(){return `<form class="card" data-f="login"><h2>Connexion</h2><p class="mut">Entre ton code d’administrateur pour ouvrir la caisse.</p><label>Code administrateur<input type="password" name="c" autocomplete="current-password" required></label>${ERR?`<p style="color:var(--bad)">${esc(ERR)}</p>`:""}<button class="pri">Se connecter</button></form>`}
 const IN_T=["Dîme","Offrande","Action de grâce","Don spécial","Autre"];
 const OUT_C=["Entretien du temple","Électricité et eau","Salaires et soutien","Œuvres sociales","Matériel et sono","Transport","Autre"];
 const PD="Projets et dettes";
-const T=[["home","Accueil"],["in","Entrées"],["out","Dépenses"],["bud","Budget"],["proj","Projets"],["rep","Rapport"]];
+const ocats=()=>S.cats.length?S.cats:OUT_C;
+const allc=()=>[...new Set(ocats().concat(S.out.map(x=>x.c)))];
+const T=[["home","Accueil"],["in","Entrées"],["out","Dépenses"],["bud","Budget"],["proj","Projets"],["jr","Journal"],["rep","Rapport"]];
 const MN=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const f=n=>new Intl.NumberFormat("fr-FR").format(Math.round(n))+" FCFA";
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -127,18 +151,18 @@ function home(){
 
 function list(k){
   const isIn=k==="in",arr=S[k].filter(x=>x.d.startsWith(month)).sort((a,b)=>b.d.localeCompare(a.d));
-  const o=(isIn?IN_T:OUT_C).map(t=>`<option>${t}</option>`).join("");
+  const o=(isIn?IN_T:ocats()).map(t=>`<option>${t}</option>`).join("");
   return mbar()+`<form class="card" data-f="${k}"><h2>${isIn?"Nouvelle entrée":"Nouvelle dépense"}</h2>
   <label>Date<input type="date" name="d" value="${today()}" required></label>
   <label>${isIn?"Type":"Catégorie"}<select name="c">${o}</select></label>
   <label>Montant (FCFA)<input type="number" name="a" min="1" inputmode="numeric" required></label>
   <label>${isIn?"Donateur ou précision (facultatif)":"Détail (facultatif)"}<input name="n" maxlength="80"></label>
   <button class="pri">Enregistrer</button></form>
-  <div class="card"><h2>${isIn?"Entrées":"Dépenses"} du mois : ${f(sum(arr))}</h2>${arr.length?arr.map(x=>item(x,k)).join(""):`<p class="mut">Aucune ${isIn?"entrée":"dépense"} ce mois-ci. Utilise le formulaire ci-dessus.</p>`}</div>`;
+  <div class="card"><h2>${isIn?"Entrées":"Dépenses"} du mois : ${f(sum(arr))}</h2>${arr.length?arr.map(x=>item(x,k)).join(""):`<p class="mut">Aucune ${isIn?"entrée":"dépense"} ce mois-ci. Utilise le formulaire ci-dessus.</p>`}</div>${!isIn&&S.me.principal?catsCard():""}`;
 }
 
 function budget(){
-  const cats=OUT_C.concat([PD]),sp=c=>sum(outs().filter(x=>x.c===c),month);
+  const cats=allc().concat([PD]),sp=c=>sum(outs().filter(x=>x.c===c),month);
   const tb=cats.reduce((t,c)=>t+(S.budget[c]||0),0),ts=sum(outs(),month);
   return mbar()+`<div class="card"><h2>Budget mensuel</h2><p class="mut">Fixe un montant par catégorie. La barre devient rouge quand il est dépassé.</p>
   <p><b>Prévu : ${f(tb)}</b> · Dépensé : ${f(ts)}</p></div>`+cats.map(c=>{const b=S.budget[c]||0,s=sp(c);
@@ -172,14 +196,14 @@ function rep(){
   return mbar()+`<div class="card"><h2>Rapport du mois</h2><table>
   <tr class="t"><td colspan="2">Entrées</td></tr>${g(S.in,IN_T).map(tr).join("")||'<tr><td class="mut" colspan="2">Aucune</td></tr>'}
   <tr class="t"><td>Total des entrées</td><td>${f(ei)}</td></tr>
-  <tr class="t"><td colspan="2">Dépenses</td></tr>${g(o,OUT_C.concat([PD])).map(tr).join("")||'<tr><td class="mut" colspan="2">Aucune</td></tr>'}
+  <tr class="t"><td colspan="2">Dépenses</td></tr>${g(o,allc().concat([PD])).map(tr).join("")||'<tr><td class="mut" colspan="2">Aucune</td></tr>'}
   <tr class="t"><td>Total des dépenses</td><td>${f(eo)}</td></tr>
   <tr class="t"><td>Solde du mois</td><td>${f(ei-eo)}</td></tr></table>
   <p class="noprint" style="margin:12px 0 0"><button class="sec" data-a="pr">Imprimer ce rapport</button></p></div>
   <div class="card noprint"><h2>Nom de l’église</h2><label>Affiché en haut de l’appli<input data-nm="" ${S.me.principal?"":"disabled"} value="${esc(S.name)}" maxlength="60" placeholder="Caisse de l’Église"></label></div>
   <div class="card noprint"><h2>Mon compte</h2><p class="mut">Connecté : <b>${esc(S.me.nom)}</b>${S.me.principal?" (principal)":""}</p>
   <form data-f="chg"><label>Nouveau code (8 caractères minimum)<input type="password" name="c" minlength="8" required autocomplete="new-password"></label><button class="sec">Changer mon code</button></form>
-  <button class="sec" data-a="lo">Se déconnecter</button></div>
+  ${"Notification" in window&&Notification.permission!=="granted"?`<button class="sec" data-a="nt">Activer les notifications</button>`:""}<button class="sec" data-a="lo">Se déconnecter</button></div>
   ${S.me.principal?`<div class="card noprint"><h2>Administrateurs</h2>${S.admins.map(x=>`<div class="row"><div><b>${esc(x.nom)}</b>${x.principal?"<small>Principal</small>":""}</div>${x.principal?"":`<button class="x" data-a="da" data-id="${x.id}">Retirer</button>`}</div>`).join("")}
   <form data-f="adm" style="margin-top:12px"><label>Nom du nouvel administrateur<input name="n" required maxlength="40"></label><label>Code d’accès (8 caractères minimum)<input name="c" minlength="8" required></label><button class="pri">Ajouter l’administrateur</button></form></div>`:""}`;
 }
@@ -187,25 +211,28 @@ function rep(){
 function render(){
   if(!S.me){$("#app").innerHTML=login();$("#tabs").style.display="none";return}
   $("#tabs").style.display="";
-  $("#app").innerHTML=(ERR?`<div class="card" style="color:var(--bad)">${esc(ERR)}</div>`:"")+{home:home,in:()=>list("in"),out:()=>list("out"),bud:budget,proj:proj,rep:rep}[tab]();
+  $("#app").innerHTML=(ERR?`<div class="card" style="color:var(--bad)">${esc(ERR)}</div>`:"")+{home:home,in:()=>list("in"),out:()=>list("out"),bud:budget,proj:proj,jr:journal,rep:rep}[tab]();
   $("#tabs").innerHTML=T.map(t=>`<button data-t="${t[0]}" class="${t[0]===tab?"on":""}">${t[1]}</button>`).join("");
   $("#ttl").textContent=S.name||"Caisse de l’Église";
 }
 
 document.addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
-  if(b.dataset.t){tab=b.dataset.t;ED=null;ERR="";render();scrollTo(0,0);return}
+  if(b.dataset.t){tab=b.dataset.t;ED=null;ERR="";NOTE=null;drawNote();render();scrollTo(0,0);return}
   const a=b.dataset.a;
-  if(a==="ed"){const x=S[b.dataset.k].find(y=>y.id===b.dataset.id);if(!x)return;ED={k:b.dataset.k,id:x.id};render();const fm=$("form[data-f]");fm.d.value=x.d;fm.c.value=x.c;fm.a.value=x.a;fm.n.value=x.n||"";fm.querySelector(".pri").textContent="Enregistrer la modification";fm.scrollIntoView();return}
+  if(a==="ed"){const x=S[b.dataset.k].find(y=>y.id===b.dataset.id);if(!x)return;ED={k:b.dataset.k,id:x.id};render();const fm=$("form[data-f]");fm.d.value=x.d;if(![...fm.c.options].some(o=>o.value===x.c))fm.c.add(new Option(x.c,x.c));fm.c.value=x.c;fm.a.value=x.a;fm.n.value=x.n||"";fm.querySelector(".pri").textContent="Enregistrer la modification";fm.scrollIntoView();return}
   if(a==="pm"||a==="nm"){const p=month.split("-").map(Number);month=ym(new Date(p[0],p[1]-1+(a==="nm"?1:-1),1));render();return}
   if(a==="pr"){print();return}
-  if(a==="lo"){try{localStorage.removeItem("fin-code")}catch(x){}CODE="";S.me=null;ERR="";render();return}
-  if(a==="del"||a==="dp"||a==="up"||a==="da"){
+  if(a==="dn"){NOTE=null;drawNote();return}
+  if(a==="nt"){try{Notification.requestPermission().then(()=>render())}catch(x){}return}
+  if(a==="lo"){NOTE=null;drawNote();try{localStorage.removeItem("fin-code")}catch(x){}CODE="";S.me=null;ERR="";render();return}
+  if(a==="del"||a==="dp"||a==="up"||a==="da"||a==="dc"){
     if(!b.classList.contains("arm")){const t=b.textContent;b.classList.add("arm");b.textContent="Confirmer ?";setTimeout(()=>{b.classList.remove("arm");b.textContent=t},3000);return}
     if(a==="del")act("fin_delete_entry",{p_id:b.dataset.id});
     if(a==="dp")act("fin_delete_project",{p_id:b.dataset.id});
     if(a==="up"){const p=S.proj.find(p=>p.id===b.dataset.id);p&&p.pay.length&&act("fin_delete_payment",{p_id:p.pay[p.pay.length-1].id})}
     if(a==="da")act("fin_delete_admin",{p_id:b.dataset.id});
+    if(a==="dc")act("fin_delete_category",{p_nom:b.dataset.n});
   }
 });
 document.addEventListener("submit",async e=>{
@@ -215,6 +242,7 @@ document.addEventListener("submit",async e=>{
     await act(x?"fin_update_entry":"fin_add_entry",x?{p_id:x,p_d:v.d,p_c:v.c,p_a:+v.a,p_n:v.n.trim()}:{p_kind:k,p_d:v.d,p_c:v.c,p_a:+v.a,p_n:v.n.trim()})}
   else if(k==="proj")await act("fin_add_project",{p_n:v.n.trim(),p_k:v.k,p_t:+v.a});
   else if(k==="pay")await act("fin_add_payment",{p_project:f.dataset.id,p_d:v.d,p_a:+v.a,p_n:(v.n||"").trim()});
+  else if(k==="cat")await act("fin_add_category",{p_nom:v.n.trim()});
   else if(k==="adm")await act("fin_add_admin",{p_nom:v.n.trim(),p_newcode:v.c});
   else if(k==="chg"){ERR="";try{await rpc("fin_change_code",{p_new:v.c});CODE=v.c;try{localStorage.setItem("fin-code",CODE)}catch(x){}await loadAll()}catch(x){ERR=x.message}render()}
 });
@@ -225,9 +253,10 @@ document.addEventListener("change",e=>{
   else if(t.dataset.nm!==undefined)act("fin_set_name",{p_name:t.value.trim()});
 });
 (async()=>{if(CODE){try{await loadAll()}catch(e){ERR=e.message;CODE="";try{localStorage.removeItem("fin-code")}catch(x){}}}render()})();
-setInterval(async()=>{if(!S.me||document.hidden||ED)return;
-  if([...document.querySelectorAll("#app form input[name=a],#app form input[name=n],#app form input[name=c]")].some(i=>i.value))return;
-  try{await loadAll();render()}catch(e){}},30000);
+setInterval(async()=>{if(!S.me||document.hidden)return;
+  try{await loadAll()}catch(e){return}
+  const busy=ED||[...document.querySelectorAll("#app form input[name=a],#app form input[name=n],#app form input[name=c]")].some(i=>i.value);
+  if(!busy)render()},20000);
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
