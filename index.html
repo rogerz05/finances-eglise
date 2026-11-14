@@ -68,10 +68,12 @@ table{width:100%;border-collapse:collapse;font-size:15px}
 td{padding:7px 0;border-top:1px solid var(--line)}
 td:last-child{text-align:right;white-space:nowrap}
 tr.t td{font-weight:700}
+.seg{display:flex;gap:8px;margin:0 0 12px}.seg .sec{flex:1;margin:0}.seg .on{border-color:var(--gold);font-weight:700}
+table.num td:not(:first-child){text-align:right;white-space:nowrap;padding-left:8px}
 #tabs{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(7,1fr);background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
 #tabs button{border:0;background:transparent;color:var(--mut);padding:14px 1px;font-size:11.5px}
 #tabs button.on{color:var(--pri);font-weight:700;box-shadow:inset 0 3px 0 var(--gold)}
-@media print{body::before{display:none}#tabs,.mb,.noprint{display:none!important}body{background:#fff;color:#000}}
+@media print{:root:root:root{--bg:#fff;--card:#fff;--cardbg:#fff;--ink:#14213d;--mut:#555;--line:#ccc;--pri:#1d4e89;--ok:#1f8a5b;--bad:#c0392b;--gold:#b9852b}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body::before{display:none}#tabs,.mb,.noprint{display:none!important}body{background:#fff;color:#000}}
 </style>
 </head>
 <body>
@@ -121,6 +123,27 @@ function doExport(w){
   L.push("",[q("Total entrées"),"","",ti].join(";"),[q("Total dépenses"),"","",to].join(";"),[q("Solde"),"","",ti-to].join(";"));
   dl("caisse-"+(m||"complet")+".csv","\ufeff"+L.join("\r\n"),"text/csv;charset=utf-8");
 }
+function repSwitch(){return `<div class="seg noprint"><button class="sec ${REPM==="m"?"on":""}" data-a="rm" data-v="m">Rapport du mois</button><button class="sec ${REPM==="y"?"on":""}" data-a="rm" data-v="y">Rapport annuel</button></div>`}
+function ybar(){return `<div class="mb"><button data-a="py" aria-label="Année précédente">‹</button><input value="${month.slice(0,4)}" readonly aria-label="Année"><button data-a="ny" aria-label="Année suivante">›</button></div>`}
+function repYear(){
+  const y=month.slice(0,4),o=outs(),nf=n=>new Intl.NumberFormat("fr-FR").format(Math.round(n));
+  const mi=[],mo=[];
+  for(let i=1;i<=12;i++){const k=y+"-"+String(i).padStart(2,"0");mi.push(sum(S.in,k));mo.push(sum(o,k))}
+  const ti=mi.reduce((a,b)=>a+b,0),to=mo.reduce((a,b)=>a+b,0),mx=Math.max(1,...mi,...mo),L="JFMAMJJASOND";
+  const chart=`<div class="ch">${mi.map((v,i)=>`<div class="col"><div class="bars"><i class="bi" style="height:${v/mx*100}%"></i><i class="bo" style="height:${mo[i]/mx*100}%"></i></div><small>${L[i]}</small></div>`).join("")}</div><div class="lg"><b class="bi"></b>Entrées<b class="bo"></b>Dépenses</div>`;
+  const brk=(arr,cats,tot)=>cats.map(c=>[c,sum(arr.filter(x=>x.c===c),y)]).filter(r=>r[1]).sort((a,b)=>b[1]-a[1]).map(r=>`<div class="row"><div>${esc(r[0])}<div class="pb"><i style="width:${r[1]/tot*100}%"></i></div></div><span>${f(r[1])}<small style="text-align:right">${Math.round(r[1]/tot*100)} %</small></span></div>`).join("")||'<p class="mut">Aucune donnée pour cette année.</p>';
+  const bud=allc().concat([PD]).filter(c=>S.budget[c]).map(c=>{const b=S.budget[c]*12,t=sum(o.filter(x=>x.c===c),y);return `<div class="row"><div>${esc(c)}<div class="pb ${t>b?"over":""}"><i style="width:${Math.min(100,t/b*100)}%"></i></div><small>Dépensé ${f(t)} sur ${f(b)}</small></div></div>`}).join("");
+  const bi=mi.indexOf(Math.max(...mi)),bo=mo.indexOf(Math.max(...mo));
+  const hl=ti||to?`<p class="mut" style="margin:10px 0 0">Meilleur mois d’entrées : <b>${MN[bi]}</b> (${f(mi[bi])}). Dépenses les plus élevées : <b>${MN[bo]}</b> (${f(mo[bo])}).</p>`:"";
+  const tb=mi.map((v,i)=>`<tr><td>${MN[i]}</td><td>${nf(v)}</td><td>${nf(mo[i])}</td><td>${nf(v-mo[i])}</td></tr>`).join("");
+  return `<div class="card"><h2>Rapport de l’année ${y}</h2><div class="two"><div><small class="mut">Entrées</small><b>${f(ti)}</b></div><div><small class="mut">Dépenses</small><b>${f(to)}</b></div><div><small class="mut">Solde de l’année</small><b>${f(ti-to)}</b></div></div></div>
+  <div class="card"><h2>Mois par mois</h2>${chart}${hl}</div>
+  <div class="card"><h2>Entrées par type</h2>${brk(S.in,allin(),ti)}</div>
+  <div class="card"><h2>Dépenses par rubrique</h2>${brk(o,allc().concat([PD]),to)}</div>
+  ${bud?`<div class="card"><h2>Budget annuel</h2><p class="mut">Budget mensuel multiplié par 12.</p>${bud}</div>`:""}
+  <div class="card"><h2>Détail par mois</h2><div style="overflow-x:auto"><table class="num"><tr class="t"><td>Mois</td><td>Entrées</td><td>Dépenses</td><td>Solde</td></tr>${tb}<tr class="t"><td>Total</td><td>${nf(ti)}</td><td>${nf(to)}</td><td>${nf(ti-to)}</td></tr></table></div><p class="mut" style="margin:8px 0 0">Montants en FCFA.</p>
+  <p class="noprint" style="margin:12px 0 0"><button class="sec" data-a="pr">Imprimer ou enregistrer en PDF</button></p></div>`;
+}
 function journal(){
   const fmt=t=>new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
   return `<div class="card"><h2>Journal des actions</h2><p class="mut">Les 100 dernières actions de tous les administrateurs.</p>${S.journal.length?S.journal.map(j=>`<div class="row"><div><b>${esc(j.a)}</b><small>${esc(j.d||"")}</small><small>${esc(j.par)} · ${fmt(j.t)}</small></div></div>`).join(""):'<p class="mut">Aucune action enregistrée pour le moment.</p>'}</div>`;
@@ -158,7 +181,7 @@ const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",
 const sum=(a,m)=>a.filter(x=>!m||x.d.startsWith(m)).reduce((t,x)=>t+x.a,0);
 const outs=()=>S.out.concat(S.proj.flatMap(p=>p.pay.map(x=>({id:x.id,d:x.d,a:x.a,c:PD,par:x.par,n:p.n+(x.n?" — "+x.n:"")}))));
 const ym=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
-let tab="home",ED=null,LASTD="",month=today().slice(0,7);
+let tab="home",REPM="m",ED=null,LASTD="",month=today().slice(0,7);
 const $=s=>document.querySelector(s);
 
 function mbar(){return `<div class="mb"><button data-a="pm" aria-label="Mois précédent">‹</button><input type="month" id="mo" value="${month}" aria-label="Mois"><button data-a="nm" aria-label="Mois suivant">›</button></div>`}
@@ -223,13 +246,13 @@ function rep(){
   const g=(a,c)=>c.map(t=>[t,sum(a.filter(x=>x.c===t),month)]).filter(r=>r[1]);
   const o=outs(),ei=sum(S.in,month),eo=sum(o,month);
   const tr=r=>`<tr><td>${r[0]}</td><td>${f(r[1])}</td></tr>`;
-  return mbar()+`<div class="card"><h2>Rapport de ${new Date(month+"-01T12:00:00").toLocaleDateString("fr-FR",{month:"long",year:"numeric"})}</h2><table>
+  return repSwitch()+(REPM==="y"?ybar()+repYear():mbar()+`<div class="card"><h2>Rapport de ${new Date(month+"-01T12:00:00").toLocaleDateString("fr-FR",{month:"long",year:"numeric"})}</h2><table>
   <tr class="t"><td colspan="2">Entrées</td></tr>${g(S.in,allin()).map(tr).join("")||'<tr><td class="mut" colspan="2">Aucune</td></tr>'}
   <tr class="t"><td>Total des entrées</td><td>${f(ei)}</td></tr>
   <tr class="t"><td colspan="2">Dépenses</td></tr>${g(o,allc().concat([PD])).map(tr).join("")||'<tr><td class="mut" colspan="2">Aucune</td></tr>'}
   <tr class="t"><td>Total des dépenses</td><td>${f(eo)}</td></tr>
   <tr class="t"><td>Solde du mois</td><td>${f(ei-eo)}</td></tr></table>
-  <p class="noprint" style="margin:12px 0 0"><button class="sec" data-a="pr">Imprimer ou enregistrer en PDF</button></p></div>
+  <p class="noprint" style="margin:12px 0 0"><button class="sec" data-a="pr">Imprimer ou enregistrer en PDF</button></p></div>`)+`
   <div class="card noprint"><h2>Nom de l’église</h2><label>Affiché en haut de l’appli<input data-nm="" ${S.me.principal?"":"disabled"} value="${esc(S.name)}" maxlength="60" placeholder="Caisse de l’Église"></label></div>
   <div class="card noprint"><h2>Exports et sauvegarde</h2>
   <label>Période de l’export Excel<select id="exp-p"><option value="m">Mois affiché</option><option value="y">Toute l’année ${month.slice(0,4)}</option><option value="all">Tout l’historique</option></select></label>
@@ -260,6 +283,8 @@ document.addEventListener("click",e=>{
   if(a==="pm"||a==="nm"){const p=month.split("-").map(Number);month=ym(new Date(p[0],p[1]-1+(a==="nm"?1:-1),1));render();return}
   if(a==="pr"){print();return}
   if(a==="exp"){doExport(b.dataset.w);return}
+  if(a==="rm"){REPM=b.dataset.v;render();return}
+  if(a==="py"||a==="ny"){month=(+month.slice(0,4)+(a==="ny"?1:-1))+month.slice(4);render();return}
   if(a==="dn"){NOTE=null;drawNote();return}
   if(a==="nt"){try{Notification.requestPermission().then(()=>render())}catch(x){}return}
   if(a==="lo"){NOTE=null;drawNote();try{localStorage.removeItem("fin-code")}catch(x){}CODE="";S.me=null;ERR="";render();return}
