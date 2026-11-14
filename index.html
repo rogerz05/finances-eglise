@@ -98,6 +98,29 @@ function notify(n){
   NOTE=n;beep();drawNote();
   try{if("Notification" in window&&Notification.permission==="granted"&&navigator.serviceWorker)navigator.serviceWorker.ready.then(r=>r.showNotification("Caisse de l’Église",{body:n[0].par+" : "+n[0].a+(n.length>1?" (+"+(n.length-1)+")":""),icon:"icon-192.png",tag:"caisse"}))}catch(e){}
 }
+function dl(name,text,type){
+  const b=new Blob([text],{type}),u=URL.createObjectURL(b),a=document.createElement("a");
+  a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000);
+}
+function bkDays(){try{const v=localStorage.getItem("fin-bk");return v?Math.floor((Date.now()-new Date(v).getTime())/864e5):null}catch(e){return null}}
+function bkText(){const d=bkDays();return d===null?"Dernière sauvegarde complète sur cet appareil : jamais.":"Dernière sauvegarde complète sur cet appareil : "+(d===0?"aujourd’hui":"il y a "+d+" jour"+(d>1?"s":""))+"."}
+function bkReminder(){const d=bkDays();return S.me&&S.me.principal&&(d===null||d>=7)?`<div class="card" style="border-color:var(--gold)"><b>💾 Pense à sauvegarder</b><p class="mut" style="margin:6px 0 10px">${d===null?"Aucune sauvegarde complète n’a été faite sur cet appareil.":"Dernière sauvegarde il y a "+d+" jours."}</p><button class="sec" data-t="rep">Ouvrir Exports et sauvegarde</button></div>`:""}
+function doExport(w){
+  if(w==="json"){
+    const d={version:1,exporte_le:new Date().toISOString(),eglise:S.name,entrees:S.in,depenses:S.out,projets:S.proj,budgets:S.budget,rubriques_entrees:icats(),rubriques_depenses:ocats(),administrateurs:S.admins.map(a=>({nom:a.nom,principal:a.principal})),journal:S.journal};
+    dl("sauvegarde-caisse-"+today()+".json",JSON.stringify(d,null,1),"application/json");
+    try{localStorage.setItem("fin-bk",new Date().toISOString())}catch(e){}
+    render();return;
+  }
+  const p=$("#exp-p").value,m=p==="m"?month:p==="y"?month.slice(0,4):"";
+  const rows=S.in.map(x=>Object.assign({t:"Entrée"},x)).concat(outs().map(x=>Object.assign({t:"Dépense"},x))).filter(x=>!m||x.d.startsWith(m)).sort((a,b)=>a.d.localeCompare(b.d));
+  const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
+  const L=[["Date","Type","Rubrique","Montant (FCFA)","Détail","Enregistré par"].map(q).join(";")];
+  rows.forEach(r=>L.push([q(fd(r.d)),q(r.t),q(r.c),r.a,q(r.n),q(r.par)].join(";")));
+  const ti=rows.filter(r=>r.t==="Entrée").reduce((t,r)=>t+r.a,0),to=rows.filter(r=>r.t==="Dépense").reduce((t,r)=>t+r.a,0);
+  L.push("",[q("Total entrées"),"","",ti].join(";"),[q("Total dépenses"),"","",to].join(";"),[q("Solde"),"","",ti-to].join(";"));
+  dl("caisse-"+(m||"complet")+".csv","\ufeff"+L.join("\r\n"),"text/csv;charset=utf-8");
+}
 function journal(){
   const fmt=t=>new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
   return `<div class="card"><h2>Journal des actions</h2><p class="mut">Les 100 dernières actions de tous les administrateurs.</p>${S.journal.length?S.journal.map(j=>`<div class="row"><div><b>${esc(j.a)}</b><small>${esc(j.d||"")}</small><small>${esc(j.par)} · ${fmt(j.t)}</small></div></div>`).join(""):'<p class="mut">Aucune action enregistrée pour le moment.</p>'}</div>`;
@@ -133,9 +156,9 @@ const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth
 const fd=d=>d.split("-").reverse().join("/");
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const sum=(a,m)=>a.filter(x=>!m||x.d.startsWith(m)).reduce((t,x)=>t+x.a,0);
-const outs=()=>S.out.concat(S.proj.flatMap(p=>p.pay.map(x=>({id:x.id,d:x.d,a:x.a,c:PD,n:p.n+(x.n?" — "+x.n:"")}))));
+const outs=()=>S.out.concat(S.proj.flatMap(p=>p.pay.map(x=>({id:x.id,d:x.d,a:x.a,c:PD,par:x.par,n:p.n+(x.n?" — "+x.n:"")}))));
 const ym=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
-let tab="home",ED=null,month=today().slice(0,7);
+let tab="home",ED=null,LASTD="",month=today().slice(0,7);
 const $=s=>document.querySelector(s);
 
 function mbar(){return `<div class="mb"><button data-a="pm" aria-label="Mois précédent">‹</button><input type="month" id="mo" value="${month}" aria-label="Mois"><button data-a="nm" aria-label="Mois suivant">›</button></div>`}
@@ -148,7 +171,7 @@ function home(){
   const mx=Math.max(1,...data.map(r=>Math.max(r[1],r[2])));
   const rep=allin().map(t=>[t,sum(S.in.filter(x=>x.c===t),month)]).filter(r=>r[1]);
   const rec=S.in.map(x=>Object.assign({s:"in"},x)).concat(outs().map(x=>Object.assign({s:"out"},x))).filter(x=>x.d.startsWith(month)).sort((a,b)=>b.d.localeCompare(a.d)).slice(0,5);
-  return mbar()+`<div class="hero"><small>Solde du mois</small><div class="big">${f(ei-eo)}</div>
+  return mbar()+bkReminder()+`<div class="hero"><small>Solde du mois</small><div class="big">${f(ei-eo)}</div>
   <div class="two"><div><small>Entrées</small><b>${f(ei)}</b></div><div><small>Sorties</small><b>${f(eo)}</b></div><div><small>En caisse depuis le début</small><b>${f(tot)}</b></div></div></div>
   <div class="card"><h2>Six derniers mois</h2><div class="ch">${data.map(r=>`<div class="col"><div class="bars"><i class="bi" style="height:${r[1]/mx*100}%"></i><i class="bo" style="height:${r[2]/mx*100}%"></i></div><small>${MN[+r[0].slice(5)-1]}</small></div>`).join("")}</div>
   <div class="lg"><b class="bi"></b>Entrées<b class="bo"></b>Sorties</div></div>
@@ -160,7 +183,7 @@ function list(k){
   const isIn=k==="in",arr=S[k].filter(x=>x.d.startsWith(month)).sort((a,b)=>b.d.localeCompare(a.d));
   const o=(isIn?icats():ocats()).map(t=>`<option>${t}</option>`).join("");
   return mbar()+`<form class="card" data-f="${k}"><h2>${isIn?"Nouvelle entrée":"Nouvelle dépense"}</h2>
-  <label>Date<input type="date" name="d" value="${today()}" required></label>
+  <label>Date<input type="date" name="d" value="${LASTD||today()}" required></label>
   <label>${isIn?"Type":"Catégorie"}<select name="c">${o}</select></label>
   <label>Montant (FCFA)<input type="number" name="a" min="1" inputmode="numeric" required></label>
   <label>${isIn?"Donateur ou précision (facultatif)":"Détail (facultatif)"}<input name="n" maxlength="80"></label>
@@ -200,14 +223,20 @@ function rep(){
   const g=(a,c)=>c.map(t=>[t,sum(a.filter(x=>x.c===t),month)]).filter(r=>r[1]);
   const o=outs(),ei=sum(S.in,month),eo=sum(o,month);
   const tr=r=>`<tr><td>${r[0]}</td><td>${f(r[1])}</td></tr>`;
-  return mbar()+`<div class="card"><h2>Rapport du mois</h2><table>
+  return mbar()+`<div class="card"><h2>Rapport de ${new Date(month+"-01T12:00:00").toLocaleDateString("fr-FR",{month:"long",year:"numeric"})}</h2><table>
   <tr class="t"><td colspan="2">Entrées</td></tr>${g(S.in,allin()).map(tr).join("")||'<tr><td class="mut" colspan="2">Aucune</td></tr>'}
   <tr class="t"><td>Total des entrées</td><td>${f(ei)}</td></tr>
   <tr class="t"><td colspan="2">Dépenses</td></tr>${g(o,allc().concat([PD])).map(tr).join("")||'<tr><td class="mut" colspan="2">Aucune</td></tr>'}
   <tr class="t"><td>Total des dépenses</td><td>${f(eo)}</td></tr>
   <tr class="t"><td>Solde du mois</td><td>${f(ei-eo)}</td></tr></table>
-  <p class="noprint" style="margin:12px 0 0"><button class="sec" data-a="pr">Imprimer ce rapport</button></p></div>
+  <p class="noprint" style="margin:12px 0 0"><button class="sec" data-a="pr">Imprimer ou enregistrer en PDF</button></p></div>
   <div class="card noprint"><h2>Nom de l’église</h2><label>Affiché en haut de l’appli<input data-nm="" ${S.me.principal?"":"disabled"} value="${esc(S.name)}" maxlength="60" placeholder="Caisse de l’Église"></label></div>
+  <div class="card noprint"><h2>Exports et sauvegarde</h2>
+  <label>Période de l’export Excel<select id="exp-p"><option value="m">Mois affiché</option><option value="y">Toute l’année ${month.slice(0,4)}</option><option value="all">Tout l’historique</option></select></label>
+  <p><button class="sec" data-a="exp" data-w="csv">Exporter vers Excel (CSV)</button></p>
+  <p class="mut">La sauvegarde complète enregistre toutes les données dans un fichier à garder en lieu sûr (Drive, ordinateur, WhatsApp).</p>
+  <button class="sec" data-a="exp" data-w="json">Sauvegarde complète</button>
+  <p class="mut" style="margin-top:10px">${bkText()}</p></div>
   <div class="card noprint"><h2>Mon compte</h2><p class="mut">Connecté : <b>${esc(S.me.nom)}</b>${S.me.principal?" (principal)":""}</p>
   <form data-f="chg"><label>Nouveau code (8 caractères minimum)<input type="password" name="c" minlength="8" required autocomplete="new-password"></label><button class="sec">Changer mon code</button></form>
   ${"Notification" in window&&Notification.permission!=="granted"?`<button class="sec" data-a="nt">Activer les notifications</button>`:""}<button class="sec" data-a="lo">Se déconnecter</button></div>
@@ -230,6 +259,7 @@ document.addEventListener("click",e=>{
   if(a==="ed"){const x=S[b.dataset.k].find(y=>y.id===b.dataset.id);if(!x)return;ED={k:b.dataset.k,id:x.id};render();const fm=$("form[data-f]");fm.d.value=x.d;if(![...fm.c.options].some(o=>o.value===x.c))fm.c.add(new Option(x.c,x.c));fm.c.value=x.c;fm.a.value=x.a;fm.n.value=x.n||"";fm.querySelector(".pri").textContent="Enregistrer la modification";fm.scrollIntoView();return}
   if(a==="pm"||a==="nm"){const p=month.split("-").map(Number);month=ym(new Date(p[0],p[1]-1+(a==="nm"?1:-1),1));render();return}
   if(a==="pr"){print();return}
+  if(a==="exp"){doExport(b.dataset.w);return}
   if(a==="dn"){NOTE=null;drawNote();return}
   if(a==="nt"){try{Notification.requestPermission().then(()=>render())}catch(x){}return}
   if(a==="lo"){NOTE=null;drawNote();try{localStorage.removeItem("fin-code")}catch(x){}CODE="";S.me=null;ERR="";render();return}
@@ -245,7 +275,7 @@ document.addEventListener("click",e=>{
 document.addEventListener("submit",async e=>{
   e.preventDefault();const f=e.target,k=f.dataset.f,v=Object.fromEntries(new FormData(f));
   if(k==="login"){CODE=v.c.trim();ERR="";try{await loadAll();try{localStorage.setItem("fin-code",CODE)}catch(x){}}catch(x){ERR=x.message;CODE=""}render()}
-  else if(k==="in"||k==="out"){const x=ED&&ED.k===k?ED.id:null;month=v.d.slice(0,7);ED=null;
+  else if(k==="in"||k==="out"){const x=ED&&ED.k===k?ED.id:null;month=v.d.slice(0,7);LASTD=v.d;ED=null;
     await act(x?"fin_update_entry":"fin_add_entry",x?{p_id:x,p_d:v.d,p_c:v.c,p_a:+v.a,p_n:v.n.trim()}:{p_kind:k,p_d:v.d,p_c:v.c,p_a:+v.a,p_n:v.n.trim()})}
   else if(k==="proj")await act("fin_add_project",{p_n:v.n.trim(),p_k:v.k,p_t:+v.a});
   else if(k==="pay")await act("fin_add_payment",{p_project:f.dataset.id,p_d:v.d,p_a:+v.a,p_n:(v.n||"").trim()});
@@ -262,7 +292,9 @@ document.addEventListener("change",e=>{
 (async()=>{if(CODE){try{await loadAll()}catch(e){ERR=e.message;CODE="";try{localStorage.removeItem("fin-code")}catch(x){}}}render()})();
 setInterval(async()=>{if(!S.me||document.hidden)return;
   try{await loadAll()}catch(e){return}
-  const busy=ED||[...document.querySelectorAll("#app form input[name=a],#app form input[name=n],#app form input[name=c]")].some(i=>i.value);
+  const f=document.activeElement,inForm=f&&f.closest&&f.closest("#app form");
+  const dirty=[...document.querySelectorAll("#app form input,#app form select,#app form textarea")].some(i=>i.tagName==="SELECT"?[...i.options].some(o=>o.selected!==o.defaultSelected):i.value!==i.defaultValue);
+  const busy=ED||inForm||dirty;
   if(!busy)render()},20000);
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
