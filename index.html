@@ -68,6 +68,7 @@ table{width:100%;border-collapse:collapse;font-size:15px}
 td{padding:7px 0;border-top:1px solid var(--line)}
 td:last-child{text-align:right;white-space:nowrap}
 tr.t td{font-weight:700}
+td[colspan]{text-align:left}
 .seg{display:flex;gap:8px;margin:0 0 12px}.seg .sec{flex:1;margin:0}.seg .on{border-color:var(--gold);font-weight:700}
 table.num td:not(:first-child){text-align:right;white-space:nowrap;padding-left:8px}
 #tabs{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(7,1fr);background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
@@ -79,6 +80,7 @@ table.num td:not(:first-child){text-align:right;white-space:nowrap;padding-left:
 <body>
 <header><img class="mark" alt="" src="data:image/jpeg;base64,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"><div><h1 id="ttl">Caisse de l’Église</h1><p>Dîmes, offrandes, dépenses, budget et projets</p></div></header>
 <div id="note" style="max-width:720px;margin:0 auto;padding:0 16px"></div>
+<div id="upd" style="max-width:720px;margin:0 auto;padding:0 16px"></div>
 <main id="app"></main>
 <nav id="tabs" aria-label="Sections"></nav>
 <script>
@@ -99,6 +101,31 @@ function drawNote(){
 function notify(n){
   NOTE=n;beep();drawNote();
   try{if("Notification" in window&&Notification.permission==="granted"&&navigator.serviceWorker)navigator.serviceWorker.ready.then(r=>r.showNotification("Caisse de l’Église",{body:n[0].par+" : "+n[0].a+(n.length>1?" (+"+(n.length-1)+")":""),icon:"icon-192.png",tag:"caisse"}))}catch(e){}
+}
+const BUILD="b20261114b";let lastChk=0,NEWB="";
+function isBusy(){
+  const f=document.activeElement,inForm=f&&f.closest&&f.closest("#app form");
+  const dirty=[...document.querySelectorAll("#app form input,#app form select,#app form textarea")].some(i=>i.tagName==="SELECT"?[...i.options].some(o=>o.selected!==o.defaultSelected):i.value!==i.defaultValue);
+  return !!(ED||REN||inForm||dirty);
+}
+function goUpd(){
+  let n=0;try{n=+sessionStorage.getItem("upd-n")||0;sessionStorage.setItem("upd-n",String(n+1))}catch(e){}
+  if(n>=2)return false;
+  location.replace(location.pathname+"?v="+encodeURIComponent(NEWB));return true;
+}
+function applyUpd(){
+  const u=$("#upd");
+  if(!isBusy()&&goUpd()){u.innerHTML='<div class="card"><b>Mise à jour de l’appli…</b></div>';return}
+  u.innerHTML='<div class="card" style="border-color:var(--gold)"><b>🔄 Nouvelle version disponible</b><p style="margin:10px 0 0"><button class="sec" data-a="upd">Mettre à jour maintenant</button></p></div>';
+}
+async function chkUpdate(force){
+  if(!force&&Date.now()-lastChk<300000)return;lastChk=Date.now();
+  try{
+    const r=await fetch("index.html",{cache:"no-store"});if(!r.ok)return;
+    const m=(await r.text()).match(/const BUILD="([^"]+)"/);if(!m)return;
+    if(m[1]===BUILD){try{sessionStorage.removeItem("upd-n")}catch(e){}return}
+    NEWB=m[1];UPD=true;applyUpd();
+  }catch(e){}
 }
 function dl(name,text,type){
   const b=new Blob([text],{type}),u=URL.createObjectURL(b),a=document.createElement("a");
@@ -148,7 +175,7 @@ function journal(){
   const fmt=t=>new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
   return `<div class="card"><h2>Journal des actions</h2><p class="mut">Les 100 dernières actions de tous les administrateurs.</p>${S.journal.length?S.journal.map(j=>`<div class="row"><div><b>${esc(j.a)}</b><small>${esc(j.d||"")}</small><small>${esc(j.par)} · ${fmt(j.t)}</small></div></div>`).join(""):'<p class="mut">Aucune action enregistrée pour le moment.</p>'}</div>`;
 }
-function catsCard(k){const isIn=k==="in",L=isIn?icats():ocats();return `<div class="card"><h2>Rubriques ${isIn?"d’entrées":"de dépenses"}</h2><p class="mut">Retirer une rubrique ne modifie pas les ${isIn?"entrées":"dépenses"} déjà enregistrées.</p>${L.map(c=>`<div class="row"><div>${esc(c)}</div><button class="x" data-a="dc" data-k="${k}" data-n="${esc(c)}">Retirer</button></div>`).join("")}<form data-f="cat" data-k="${k}" style="margin-top:12px"><label>Nouvelle rubrique<input name="n" required maxlength="40"></label><button class="pri">Ajouter la rubrique</button></form></div>`}
+function catsCard(k){const isIn=k==="in",L=isIn?icats():ocats();return `<div class="card"><h2>Rubriques ${isIn?"d’entrées":"de dépenses"}</h2><p class="mut">Retirer une rubrique ne modifie pas les ${isIn?"entrées":"dépenses"} déjà enregistrées.</p>${L.map(c=>REN&&REN.k===k&&REN.n===c?`<form class="row" data-f="ren" data-k="${k}" data-n="${esc(c)}"><input name="n" value="${esc(c)}" required maxlength="40" style="margin:0;flex:1"><button class="pri" style="width:auto;padding:10px 14px">OK</button><button type="button" class="x" data-a="rc">✕</button></form>`:`<div class="row"><div>${esc(c)}</div><button class="x" data-a="rn" data-k="${k}" data-n="${esc(c)}">Renommer</button><button class="x" data-a="dc" data-k="${k}" data-n="${esc(c)}">Retirer</button></div>`).join("")}<form data-f="cat" data-k="${k}" style="margin-top:12px"><label>Nouvelle rubrique<input name="n" required maxlength="40"></label><button class="pri">Ajouter la rubrique</button></form></div>`}
 async function rpc(fn,args){
   let r;try{r=await fetch(URL_+"/rest/v1/rpc/"+fn,{method:"POST",headers:{"Content-Type":"application/json",apikey:KEY},body:JSON.stringify(Object.assign({p_code:CODE},args||{}))})}catch(e){throw new Error("Connexion impossible. Vérifie ta connexion internet.")}
   const t=await r.text();let j=null;try{j=t?JSON.parse(t):null}catch(e){}
@@ -181,7 +208,7 @@ const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",
 const sum=(a,m)=>a.filter(x=>!m||x.d.startsWith(m)).reduce((t,x)=>t+x.a,0);
 const outs=()=>S.out.concat(S.proj.flatMap(p=>p.pay.map(x=>({id:x.id,d:x.d,a:x.a,c:PD,par:x.par,n:p.n+(x.n?" — "+x.n:"")}))));
 const ym=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
-let tab="home",REPM="m",ED=null,LASTD="",month=today().slice(0,7);
+let tab="home",REPM="m",REN=null,UPD=false,ED=null,LASTD="",month=today().slice(0,7);
 const $=s=>document.querySelector(s);
 
 function mbar(){return `<div class="mb"><button data-a="pm" aria-label="Mois précédent">‹</button><input type="month" id="mo" value="${month}" aria-label="Mois"><button data-a="nm" aria-label="Mois suivant">›</button></div>`}
@@ -277,13 +304,16 @@ function render(){
 
 document.addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
-  if(b.dataset.t){tab=b.dataset.t;ED=null;ERR="";NOTE=null;drawNote();render();scrollTo(0,0);return}
+  if(b.dataset.t){tab=b.dataset.t;ED=null;REN=null;ERR="";NOTE=null;drawNote();render();scrollTo(0,0);return}
   const a=b.dataset.a;
   if(a==="ed"){const x=S[b.dataset.k].find(y=>y.id===b.dataset.id);if(!x)return;ED={k:b.dataset.k,id:x.id};render();const fm=$("form[data-f]");fm.d.value=x.d;if(![...fm.c.options].some(o=>o.value===x.c))fm.c.add(new Option(x.c,x.c));fm.c.value=x.c;fm.a.value=x.a;fm.n.value=x.n||"";fm.querySelector(".pri").textContent="Enregistrer la modification";fm.scrollIntoView();return}
   if(a==="pm"||a==="nm"){const p=month.split("-").map(Number);month=ym(new Date(p[0],p[1]-1+(a==="nm"?1:-1),1));render();return}
   if(a==="pr"){print();return}
   if(a==="exp"){doExport(b.dataset.w);return}
   if(a==="rm"){REPM=b.dataset.v;render();return}
+  if(a==="rn"){REN={k:b.dataset.k,n:b.dataset.n};render();setTimeout(()=>{const i=document.querySelector('#app form[data-f="ren"] input');if(i){i.focus();i.select()}},0);return}
+  if(a==="rc"){REN=null;render();return}
+  if(a==="upd"){location.replace(location.pathname+"?v="+encodeURIComponent(NEWB||Date.now()));return}
   if(a==="py"||a==="ny"){month=(+month.slice(0,4)+(a==="ny"?1:-1))+month.slice(4);render();return}
   if(a==="dn"){NOTE=null;drawNote();return}
   if(a==="nt"){try{Notification.requestPermission().then(()=>render())}catch(x){}return}
@@ -305,6 +335,7 @@ document.addEventListener("submit",async e=>{
   else if(k==="proj")await act("fin_add_project",{p_n:v.n.trim(),p_k:v.k,p_t:+v.a});
   else if(k==="pay")await act("fin_add_payment",{p_project:f.dataset.id,p_d:v.d,p_a:+v.a,p_n:(v.n||"").trim()});
   else if(k==="cat")await act("fin_add_cat",{p_kind:f.dataset.k,p_nom:v.n.trim()});
+  else if(k==="ren"){REN=null;await act("fin_rename_cat",{p_kind:f.dataset.k,p_old:f.dataset.n,p_new:v.n.trim()})}
   else if(k==="adm")await act("fin_add_admin",{p_nom:v.n.trim(),p_newcode:v.c});
   else if(k==="chg"){ERR="";try{await rpc("fin_change_code",{p_new:v.c});CODE=v.c;try{localStorage.setItem("fin-code",CODE)}catch(x){}await loadAll()}catch(x){ERR=x.message}render()}
 });
@@ -316,11 +347,12 @@ document.addEventListener("change",e=>{
 });
 (async()=>{if(CODE){try{await loadAll()}catch(e){ERR=e.message;CODE="";try{localStorage.removeItem("fin-code")}catch(x){}}}render()})();
 setInterval(async()=>{if(!S.me||document.hidden)return;
+  if(UPD&&!isBusy()){applyUpd();return}
   try{await loadAll()}catch(e){return}
-  const f=document.activeElement,inForm=f&&f.closest&&f.closest("#app form");
-  const dirty=[...document.querySelectorAll("#app form input,#app form select,#app form textarea")].some(i=>i.tagName==="SELECT"?[...i.options].some(o=>o.selected!==o.defaultSelected):i.value!==i.defaultValue);
-  const busy=ED||inForm||dirty;
-  if(!busy)render()},20000);
+  if(!isBusy())render();
+  chkUpdate()},20000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)chkUpdate()});
+setTimeout(()=>chkUpdate(true),4000);
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
