@@ -64,6 +64,7 @@ button{font:inherit;cursor:pointer}
 :root[data-theme="dark"] .pri{color:#0f1726}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .pri{color:#0f1726}}
 .sec{padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);margin:0 8px 8px 0}
+a.sec{display:inline-block;text-decoration:none}
 :focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .mb{display:flex;gap:8px;align-items:center;margin:0 0 12px}
 .mb button{width:44px;height:44px;border:1px solid var(--line);border-radius:50%;background:var(--card);color:var(--ink);font-size:20px}
@@ -125,7 +126,7 @@ function drawNote(){
 function notify(n){
   NOTE=n;beep();drawNote();
 }
-const VAPID="BG8OY571IU9MWg9uJH9cYpiRrtrCsc5Jo641YpV_Z487OVrgtR4bNOCmvt3HvGBxfempNOzZh064OmJKgWD1iU8";let PUSHSYNC=false;const PUSH_READY=false;
+const VAPID="BG8OY571IU9MWg9uJH9cYpiRrtrCsc5Jo641YpV_Z487OVrgtR4bNOCmvt3HvGBxfempNOzZh064OmJKgWD1iU8";let PUSHSYNC=false,NTF="",NTM="";const PUSH_READY=false;
 function u8(b){const p="=".repeat((4-b.length%4)%4),r=atob((b+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(r,c=>c.charCodeAt(0))}
 function pushOn(){try{return "Notification" in window&&Notification.permission==="granted"&&localStorage.getItem("fin-push")==="1"}catch(e){return false}}
 async function subPush(create){
@@ -158,7 +159,9 @@ async function disablePush(){
   render();
 }
 async function syncPush(){try{if(pushOn())await subPush(false)}catch(e){}}
-const BUILD="b20261116a";let lastChk=0,NEWB="";
+async function showNtfy(){ERR="";try{NTF=await rpc("fin_ntfy")}catch(e){ERR=e.message}render()}
+async function testNtfy(){ERR="";NTM="";try{await rpc("fin_ntfy_test");NTM="Test envoyé : une notification doit apparaître dans quelques secondes."}catch(e){ERR=e.message}render()}
+const BUILD="b20261116b";let lastChk=0,NEWB="";
 function isBusy(){
   const f=document.activeElement,inForm=f&&f.closest&&f.closest("#app form");
   const dirty=[...document.querySelectorAll("#app form input,#app form select,#app form textarea")].some(i=>i.tagName==="SELECT"?[...i.options].some(o=>o.selected!==o.defaultSelected):i.value!==i.defaultValue);
@@ -358,9 +361,15 @@ function rep(){
   <p class="mut">La sauvegarde complète enregistre toutes les données dans un fichier à garder en lieu sûr (Drive, ordinateur, WhatsApp).</p>
   <button class="sec" data-a="exp" data-w="json">Sauvegarde complète</button>
   <p class="mut" style="margin-top:10px">${bkText()}</p></div>
+  <div class="card noprint"><h2>Notifications du téléphone</h2>
+  <p class="mut">Une alerte avec son apparaît dans la barre de notification quand un autre administrateur ajoute ou modifie quelque chose. Elle fonctionne avec l’appli gratuite ntfy.</p>
+  ${NTF?`<ol style="padding-left:18px;margin:8px 0"><li>Installe l’appli <b>ntfy</b> (Play Store ou App Store).</li><li>Appuie sur « Ouvrir ntfy » : elle s’abonne toute seule. Sinon, dans ntfy, appuie sur <b>+</b> et colle ton code.</li><li>Autorise les notifications, puis appuie sur « Envoyer un test ».</li></ol>
+  <p><a class="sec" href="ntfy://ntfy.sh/${esc(NTF)}">Ouvrir ntfy</a><button class="sec" data-a="nt2">Envoyer un test</button></p>
+  <label>Ton code de notification (à ne pas partager)<input readonly value="${esc(NTF)}"></label><button class="sec" data-a="nc">Copier le code</button>
+  ${NTM?`<p class="mut" style="margin:8px 0 0">${esc(NTM)}</p>`:""}`:`<button class="sec" data-a="nt">Activer les notifications</button>`}</div>
   <div class="card noprint"><h2>Mon compte</h2><p class="mut">Connecté : <b>${esc(S.me.nom)}</b>${S.me.principal?" (principal)":""}</p>
   <form data-f="chg"><label>Nouveau code (8 caractères minimum)<input type="password" name="c" minlength="8" required autocomplete="new-password"></label><button class="sec">Changer mon code</button></form>
-  ${!PUSH_READY?"":pushOn()?`<p class="mut" style="margin:10px 0">✅ Notifications activées sur cet appareil.</p><button class="sec" data-a="nx">Désactiver les notifications</button>`:`<button class="sec" data-a="nt">Activer les notifications</button>`}<button class="sec" data-a="lo">Se déconnecter</button></div>
+  <button class="sec" data-a="lo">Se déconnecter</button></div>
   ${S.me.principal?`<div class="card noprint"><h2>Administrateurs</h2>${S.admins.map(x=>`<div class="row"><div><b>${esc(x.nom)}</b>${x.principal?"<small>Principal</small>":""}</div>${x.principal?"":`<button class="x" data-a="da" data-id="${x.id}">Retirer</button>`}</div>`).join("")}
   <form data-f="adm" style="margin-top:12px"><label>Nom du nouvel administrateur<input name="n" required maxlength="40"></label><label>Code d’accès (8 caractères minimum)<input name="c" minlength="8" required></label><button class="pri">Ajouter l’administrateur</button></form></div>`:""}`;
 }
@@ -387,9 +396,11 @@ document.addEventListener("click",e=>{
   if(a==="upd"){location.replace(location.pathname+"?v="+encodeURIComponent(NEWB||Date.now()));return}
   if(a==="py"||a==="ny"){month=(+month.slice(0,4)+(a==="ny"?1:-1))+month.slice(4);render();return}
   if(a==="dn"){NOTE=null;drawNote();return}
-  if(a==="nt"){enablePush();return}
+  if(a==="nt"){showNtfy();return}
+  if(a==="nt2"){testNtfy();return}
+  if(a==="nc"){try{navigator.clipboard.writeText(NTF);b.textContent="Copié"}catch(x){}return}
   if(a==="nx"){disablePush();return}
-  if(a==="lo"){NOTE=null;drawNote();try{localStorage.removeItem("fin-code")}catch(x){}CODE="";S.me=null;ERR="";render();return}
+  if(a==="lo"){NTF="";NTM="";NOTE=null;drawNote();try{localStorage.removeItem("fin-code")}catch(x){}CODE="";S.me=null;ERR="";render();return}
   if(a==="del"||a==="dp"||a==="up"||a==="da"||a==="dc"){
     if(!b.classList.contains("arm")){const t=b.textContent;b.classList.add("arm");b.textContent="Confirmer ?";setTimeout(()=>{b.classList.remove("arm");b.textContent=t},3000);return}
     if(a==="del")act("fin_delete_entry",{p_id:b.dataset.id});
