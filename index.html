@@ -123,8 +123,12 @@ function drawNote(){
   const j=n[0];
   el.innerHTML=`<div class="card" style="border-color:var(--gold)"><b>🔔 ${n.length===1?esc(j.par)+" : "+esc(j.a):n.length+" nouvelles actions"}</b>${n.length===1&&j.d?`<small class="mut" style="display:block">${esc(j.d)}</small>`:""}<p style="margin:10px 0 0"><button class="sec" data-t="jr">Voir le journal</button><button class="sec" data-a="dn">OK</button></p></div>`;
 }
+function sayAct(j){const m=/^(Entrée|Dépense|Paiement) (ajouté|modifié|supprimé)e?$/.exec(j.a);return j.par+" "+(m?"a "+m[2]+" "+({"Entrée":"une entrée","Dépense":"une dépense","Paiement":"un paiement"})[m[1]]:": "+String(j.a).toLowerCase())}
+function voiceOn(){try{return localStorage.getItem("fin-voice")!=="0"}catch(e){return true}}
+function speak(t){try{if(!("speechSynthesis" in window))return;const u=new SpeechSynthesisUtterance(t);u.lang="fr-FR";u.rate=.95;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
 function notify(n){
   NOTE=n;beep();drawNote();
+  if(voiceOn())speak(n.length>1?n.length+" nouvelles actions. "+sayAct(n[0]):sayAct(n[0]));
 }
 const VAPID="BG8OY571IU9MWg9uJH9cYpiRrtrCsc5Jo641YpV_Z487OVrgtR4bNOCmvt3HvGBxfempNOzZh064OmJKgWD1iU8";let PUSHSYNC=false,NTF="",NTM="";const PUSH_READY=false;
 function u8(b){const p="=".repeat((4-b.length%4)%4),r=atob((b+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(r,c=>c.charCodeAt(0))}
@@ -161,7 +165,7 @@ async function disablePush(){
 async function syncPush(){try{if(pushOn())await subPush(false)}catch(e){}}
 async function showNtfy(){ERR="";try{NTF=await rpc("fin_ntfy")}catch(e){ERR=e.message}render()}
 async function testNtfy(){ERR="";NTM="";try{await rpc("fin_ntfy_test");NTM="Test envoyé : une notification doit apparaître dans quelques secondes."}catch(e){ERR=e.message}render()}
-const BUILD="b20261116b";let lastChk=0,NEWB="";
+const BUILD="b20261117a";let lastChk=0,NEWB="";
 function isBusy(){
   const f=document.activeElement,inForm=f&&f.closest&&f.closest("#app form");
   const dirty=[...document.querySelectorAll("#app form input,#app form select,#app form textarea")].some(i=>i.tagName==="SELECT"?[...i.options].some(o=>o.selected!==o.defaultSelected):i.value!==i.defaultValue);
@@ -363,6 +367,8 @@ function rep(){
   <p class="mut" style="margin-top:10px">${bkText()}</p></div>
   <div class="card noprint"><h2>Notifications du téléphone</h2>
   <p class="mut">Une alerte avec son apparaît dans la barre de notification quand un autre administrateur ajoute ou modifie quelque chose. Elle fonctionne avec l’appli gratuite ntfy.</p>
+  <p class="mut">Quand l’appli est ouverte, elle peut aussi lire l’alerte à voix haute.</p>
+  <p><button class="sec" data-a="vt">Lecture vocale : ${voiceOn()?"activée":"désactivée"}</button><button class="sec" data-a="vs">Tester la voix</button></p>
   ${NTF?`<ol style="padding-left:18px;margin:8px 0"><li>Installe l’appli <b>ntfy</b> (Play Store ou App Store).</li><li>Appuie sur « Ouvrir ntfy » : elle s’abonne toute seule. Sinon, dans ntfy, appuie sur <b>+</b> et colle ton code.</li><li>Autorise les notifications, puis appuie sur « Envoyer un test ».</li></ol>
   <p><a class="sec" href="ntfy://ntfy.sh/${esc(NTF)}">Ouvrir ntfy</a><button class="sec" data-a="nt2">Envoyer un test</button></p>
   <label>Ton code de notification (à ne pas partager)<input readonly value="${esc(NTF)}"></label><button class="sec" data-a="nc">Copier le code</button>
@@ -398,6 +404,8 @@ document.addEventListener("click",e=>{
   if(a==="dn"){NOTE=null;drawNote();return}
   if(a==="nt"){showNtfy();return}
   if(a==="nt2"){testNtfy();return}
+  if(a==="vt"){try{localStorage.setItem("fin-voice",voiceOn()?"0":"1")}catch(x){}render();return}
+  if(a==="vs"){speak("Administrateur principal a ajouté une entrée");return}
   if(a==="nc"){try{navigator.clipboard.writeText(NTF);b.textContent="Copié"}catch(x){}return}
   if(a==="nx"){disablePush();return}
   if(a==="lo"){NTF="";NTM="";NOTE=null;drawNote();try{localStorage.removeItem("fin-code")}catch(x){}CODE="";S.me=null;ERR="";render();return}
