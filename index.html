@@ -123,6 +123,19 @@ function drawNote(){
   const j=n[0];
   el.innerHTML=`<div class="card" style="border-color:var(--gold)"><b>🔔 ${n.length===1?esc(j.par)+" : "+esc(j.a):n.length+" nouvelles actions"}</b>${n.length===1&&j.d?`<small class="mut" style="display:block">${esc(j.d)}</small>`:""}<p style="margin:10px 0 0"><button class="sec" data-t="jr">Voir le journal</button><button class="sec" data-a="dn">OK</button></p></div>`;
 }
+function repText(){
+  const isY=REPM==="y",y=month.slice(0,4),per=isY?y:month,o=outs();
+  const nf=n=>new Intl.NumberFormat("fr-FR").format(Math.round(n));
+  const ei=sum(S.in,per),eo=sum(o,per),tot=sum(S.in)-sum(o);
+  const lab=isY?"l’année "+y:new Date(month+"-01T12:00:00").toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+  const bk=(arr,cats)=>cats.map(c=>[c,sum(arr.filter(x=>x.c===c),per)]).filter(r=>r[1]).sort((a,b)=>b[1]-a[1]);
+  const L=["*"+(S.name||"Finances de l’église")+"*","📊 Rapport de "+lab,"","✅ Entrées : *"+nf(ei)+" FCFA*","🔻 Dépenses : *"+nf(eo)+" FCFA*","💰 Solde "+(isY?"de l’année":"du mois")+" : *"+nf(ei-eo)+" FCFA*"];
+  const rin=bk(S.in,allin());if(rin.length){L.push("","*Entrées par type*");rin.forEach(r=>L.push("• "+r[0]+" : "+nf(r[1])+" FCFA"))}
+  const rout=bk(o,allc().concat([PD]));if(rout.length){L.push("","*Dépenses par rubrique*");rout.forEach(r=>L.push("• "+r[0]+" : "+nf(r[1])+" FCFA"))}
+  if(S.proj.length){L.push("","*Projets et dettes*");S.proj.forEach(p=>{const d=sum(p.pay);L.push("• "+p.n+" : "+nf(d)+" sur "+nf(p.t)+" FCFA ("+Math.round(d/p.t*100)+" %)")})}
+  L.push("","🏦 En caisse depuis le début : *"+nf(tot)+" FCFA*","","_Envoyé le "+fd(today())+" depuis l’appli de finances._");
+  return L.join("\n");
+}
 function sayAct(j){const m=/^(Entrée|Dépense|Paiement) (ajouté|modifié|supprimé)e?$/.exec(j.a);return j.par+" "+(m?"a "+m[2]+" "+({"Entrée":"une entrée","Dépense":"une dépense","Paiement":"un paiement"})[m[1]]:": "+String(j.a).toLowerCase())}
 function voiceOn(){try{return localStorage.getItem("fin-voice")!=="0"}catch(e){return true}}
 function speak(t){try{if(!("speechSynthesis" in window))return;const u=new SpeechSynthesisUtterance(t);u.lang="fr-FR";u.rate=.95;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
@@ -165,7 +178,7 @@ async function disablePush(){
 async function syncPush(){try{if(pushOn())await subPush(false)}catch(e){}}
 async function showNtfy(){ERR="";try{NTF=await rpc("fin_ntfy")}catch(e){ERR=e.message}render()}
 async function testNtfy(){ERR="";NTM="";try{await rpc("fin_ntfy_test");NTM="Test envoyé : une notification doit apparaître dans quelques secondes."}catch(e){ERR=e.message}render()}
-const BUILD="b20261117a";let lastChk=0,NEWB="";
+const BUILD="b20261118a";let lastChk=0,NEWB="";
 function isBusy(){
   const f=document.activeElement,inForm=f&&f.closest&&f.closest("#app form");
   const dirty=[...document.querySelectorAll("#app form input,#app form select,#app form textarea")].some(i=>i.tagName==="SELECT"?[...i.options].some(o=>o.selected!==o.defaultSelected):i.value!==i.defaultValue);
@@ -359,6 +372,10 @@ function rep(){
   <tr class="t"><td>Solde du mois</td><td>${f(ei-eo)}</td></tr></table>
   <p class="noprint" style="margin:12px 0 0"><button class="sec" data-a="pr">Imprimer ou enregistrer en PDF</button></p></div>`)+`
   <div class="card noprint"><h2>Nom de l’église</h2><label>Affiché en haut de l’appli<input data-nm="" ${S.me.principal?"":"disabled"} value="${esc(S.name)}" maxlength="60" placeholder="Caisse de l’Église"></label></div>
+  <div class="card noprint"><h2>Partager le rapport</h2>
+  <p class="mut">Envoie le résumé ${REPM==="y"?"de l’année":"du mois"} dans WhatsApp, pour le pasteur ou le conseil. Il contient les totaux et les rubriques, sans noms de donateurs ni détails.</p>
+  <textarea id="rtxt" readonly rows="9">${esc(repText())}</textarea>
+  <p style="margin:10px 0 0"><button class="sec" data-a="wa">Envoyer par WhatsApp</button><button class="sec" data-a="wc">Copier le texte</button></p></div>
   <div class="card noprint"><h2>Exports et sauvegarde</h2>
   <label>Période de l’export Excel<select id="exp-p"><option value="m">Mois affiché</option><option value="y">Toute l’année ${month.slice(0,4)}</option><option value="all">Tout l’historique</option></select></label>
   <p><button class="sec" data-a="exp" data-w="csv">Exporter vers Excel (CSV)</button></p>
@@ -396,6 +413,8 @@ document.addEventListener("click",e=>{
   if(a==="pm"||a==="nm"){const p=month.split("-").map(Number);month=ym(new Date(p[0],p[1]-1+(a==="nm"?1:-1),1));render();return}
   if(a==="pr"){print();return}
   if(a==="exp"){doExport(b.dataset.w);return}
+  if(a==="wa"){window.open("https://wa.me/?text="+encodeURIComponent(repText()),"_blank");return}
+  if(a==="wc"){try{navigator.clipboard.writeText(repText());b.textContent="Copié"}catch(x){const e=$("#rtxt");if(e)e.select()}return}
   if(a==="rm"){REPM=b.dataset.v;render();return}
   if(a==="rn"){REN={k:b.dataset.k,n:b.dataset.n};render();setTimeout(()=>{const i=document.querySelector('#app form[data-f="ren"] input');if(i){i.focus();i.select()}},0);return}
   if(a==="rc"){REN=null;render();return}
