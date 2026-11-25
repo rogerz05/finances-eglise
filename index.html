@@ -137,7 +137,7 @@ function repText(){
   L.push("","🏦 En caisse depuis le début : *"+nf(tot)+" FCFA*","","_Envoyé le "+fd(today())+" depuis l’appli de finances._");
   return L.join("\n");
 }
-function sayAct(j){const m=/^(Entrée|Dépense|Paiement) (ajouté|modifié|supprimé)e?$/.exec(j.a);return j.par+" "+(m?"a "+m[2]+" "+({"Entrée":"une entrée","Dépense":"une dépense","Paiement":"un paiement"})[m[1]]:": "+String(j.a).toLowerCase())}
+function sayAct(j){const cm=/^Comité : (entrée|dépense) (ajoutée|modifiée|supprimée)$/.exec(j.a);if(cm)return j.par+" a "+({"ajoutée":"ajouté","modifiée":"modifié","supprimée":"supprimé"})[cm[2]]+" "+(cm[1]==="entrée"?"une entrée":"une dépense")+" du comité de construction";const m=/^(Entrée|Dépense|Paiement) (ajouté|modifié|supprimé)e?$/.exec(j.a);return j.par+" "+(m?"a "+m[2]+" "+({"Entrée":"une entrée","Dépense":"une dépense","Paiement":"un paiement"})[m[1]]:": "+String(j.a).toLowerCase())}
 function voiceOn(){try{return localStorage.getItem("fin-voice")!=="0"}catch(e){return true}}
 function speak(t){try{if(!("speechSynthesis" in window))return;const u=new SpeechSynthesisUtterance(t);u.lang="fr-FR";u.rate=.95;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
 function notify(n){
@@ -224,11 +224,11 @@ async function syncQ(){
   }catch(e){}finally{SYNCING=false}
   drawOff();render();
 }
-const BUILD="b20261119a";let lastChk=0,NEWB="";
+const BUILD="b20261125a";let lastChk=0,NEWB="";
 function isBusy(){
   const f=document.activeElement,inForm=f&&f.closest&&f.closest("#app form");
   const dirty=[...document.querySelectorAll("#app form input,#app form select,#app form textarea")].some(i=>i.tagName==="SELECT"?[...i.options].some(o=>o.selected!==o.defaultSelected):i.value!==i.defaultValue);
-  return !!(ED||REN||inForm||dirty);
+  return !!(ED||REN||CED||CREN||inForm||dirty);
 }
 function goUpd(){
   let n=0;try{n=+sessionStorage.getItem("upd-n")||0;sessionStorage.setItem("upd-n",String(n+1))}catch(e){}
@@ -322,8 +322,8 @@ const ocats=()=>S.cats.length?S.cats:OUT_C;
 const icats=()=>S.icats.length?S.icats:IN_T;
 const allin=()=>[...new Set(icats().concat(S.in.map(x=>x.c)))];
 const allc=()=>[...new Set(ocats().concat(S.out.map(x=>x.c)))];
-const NAV=[["home","Accueil"],["in","Entrées"],["out","Dépenses"],["rep","Rapports"],["plus","Plus"]],MORE=["bud","proj","jr"];
-const ICO={home:'<path d="M4 11l8-7 8 7v9H4z"/>',in:'<path d="M17 7L7 17M7 9v8h8"/>',out:'<path d="M7 17L17 7M9 7h8v8"/>',rep:'<path d="M5 20V10M12 20V4M19 20v-7"/>',plus:'<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',bud:'<path d="M3 7h18v12H3zM3 11h18M7 15h3"/>',proj:'<path d="M4 20V8l8-4 8 4v12M9 20v-6h6v6"/>',jr:'<path d="M6 4h12v16H6zM9 9h6M9 13h6M9 17h4"/>'};
+const NAV=[["home","Accueil"],["in","Entrées"],["out","Dépenses"],["rep","Rapports"],["plus","Plus"]],MORE=["bud","proj","jr","cst"];
+const ICO={home:'<path d="M4 11l8-7 8 7v9H4z"/>',in:'<path d="M17 7L7 17M7 9v8h8"/>',out:'<path d="M7 17L17 7M9 7h8v8"/>',rep:'<path d="M5 20V10M12 20V4M19 20v-7"/>',plus:'<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',bud:'<path d="M3 7h18v12H3zM3 11h18M7 15h3"/>',proj:'<path d="M4 20V8l8-4 8 4v12M9 20v-6h6v6"/>',jr:'<path d="M6 4h12v16H6zM9 9h6M9 13h6M9 17h4"/>',cst:'<path d="M4 21V5M4 6h13l3 4M17 6v5M2 21h8M12 9l-6 6"/>'};
 const svg=(k,w)=>`<svg width="${w||22}" height="${w||22}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
 const MN=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const f=n=>new Intl.NumberFormat("fr-FR").format(Math.round(n))+" FCFA";
@@ -341,7 +341,7 @@ function mbar(){return `<div class="mb"><button data-a="pm" aria-label="Mois pr�
 function item(x,k){const s=k||x.s||"out";return `<div class="row"><i class="ic ${s}">${svg(s,18)}</i><div><b>${esc(x.c)}</b><small>${fd(x.d)}${x.n?" · "+esc(x.n):""}${x.par?" · "+esc(x.par):""}${x.pending?" · ⏳ en attente d’envoi":""}</small></div><span class="amt ${s}">${f(x.a)}</span>${k?(x.pending?`<button class="x" data-a="dq" data-id="${x.cid}">Annuler</button>`:`<button class="x" data-a="ed" data-k="${k}" data-id="${x.id}" aria-label="Modifier">✎</button><button class="x" data-a="del" data-k="${k}" data-id="${x.id}" aria-label="Supprimer">✕</button>`):""}</div>`}
 
 function plusMenu(){
-  const it=[["bud","Budget","Fixer et suivre le budget de chaque rubrique"],["proj","Projets et dettes","Suivre les projets et les remboursements"],["jr","Journal","Voir toutes les actions des administrateurs"]];
+  const it=[["bud","Budget","Fixer et suivre le budget de chaque rubrique"],["proj","Projets et dettes","Suivre les projets et les remboursements"],["cst","Comité de construction","Entrées et dépenses du projet de construction, à part de la caisse"],["jr","Journal","Voir toutes les actions des administrateurs"]];
   return `<div class="card"><h2>Plus</h2>${it.map(x=>`<button class="mrow" data-t="${x[0]}"><i class="ic mo">${svg(x[0])}</i><span><b>${x[1]}</b><small>${x[2]}</small></span><em>›</em></button>`).join("")}</div>`;
 }
 function home(){
@@ -444,17 +444,184 @@ function rep(){
   <form data-f="adm" style="margin-top:12px"><label>Nom du nouvel administrateur<input name="n" required maxlength="40"></label><label>Code d’accès (8 caractères minimum)<input name="c" minlength="8" required></label><button class="pri">Ajouter l’administrateur</button></form></div>`:""}`;
 }
 
+// ---- export Excel (.xlsx) sans bibliothèque externe ----
+const CRC_TABLE = (()=>{ const t=[]; for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c = (c&1) ? (0xEDB88320 ^ (c>>>1)) : (c>>>1); t[n]=c>>>0; } return t; })();
+function crc32(bytes){ let c=0xFFFFFFFF; for(let i=0;i<bytes.length;i++) c = CRC_TABLE[(c^bytes[i])&0xFF] ^ (c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function makeZip(files){
+  const enc = new TextEncoder();
+  const parts = [], central = [];
+  let offset = 0;
+  const now = new Date();
+  const dosTime = (now.getHours()<<11) | (now.getMinutes()<<5) | (now.getSeconds()>>1);
+  const dosDate = ((now.getFullYear()-1980)<<9) | ((now.getMonth()+1)<<5) | now.getDate();
+  for(const f of files){
+    const name = enc.encode(f.name), data = enc.encode(f.content), crc = crc32(data);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,0x0800,true); lh.setUint16(8,0,true);
+    lh.setUint16(10,dosTime,true); lh.setUint16(12,dosDate,true); lh.setUint32(14,crc,true);
+    lh.setUint32(18,data.length,true); lh.setUint32(22,data.length,true); lh.setUint16(26,name.length,true); lh.setUint16(28,0,true);
+    parts.push(new Uint8Array(lh.buffer), name, data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true); ch.setUint16(8,0x0800,true); ch.setUint16(10,0,true);
+    ch.setUint16(12,dosTime,true); ch.setUint16(14,dosDate,true); ch.setUint32(16,crc,true);
+    ch.setUint32(20,data.length,true); ch.setUint32(24,data.length,true); ch.setUint16(28,name.length,true);
+    ch.setUint16(30,0,true); ch.setUint16(32,0,true); ch.setUint16(34,0,true); ch.setUint16(36,0,true); ch.setUint32(38,0,true); ch.setUint32(42,offset,true);
+    central.push(new Uint8Array(ch.buffer), name);
+    offset += 30 + name.length + data.length;
+  }
+  let cdSize = 0; for(const c of central) cdSize += c.length;
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true); end.setUint16(4,0,true); end.setUint16(6,0,true);
+  end.setUint16(8,files.length,true); end.setUint16(10,files.length,true);
+  end.setUint32(12,cdSize,true); end.setUint32(16,offset,true); end.setUint16(20,0,true);
+  return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+function xmlEsc(v){ return String(v==null?"":v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function colLetter(i){ let s=""; i++; while(i>0){ const m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-1)/26); } return s; }
+function sheetXml(rows){
+  const widths = [];
+  rows.forEach(r=>r.forEach((v,i)=>{ const l = String(v==null?"":v).length; widths[i] = Math.max(widths[i]||6, Math.min(48, l+3)); }));
+  const cols = widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("");
+  const data = rows.map((r,ri)=>{
+    const cells = r.map((v,ci)=>{
+      const ref = colLetter(ci) + (ri+1);
+      const st = ri===0 ? ' s="1"' : "";
+      if(typeof v === "number") return `<c r="${ref}"${st}><v>${v}</v></c>`;
+      return `<c r="${ref}"${st} t="inlineStr"><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`;
+    }).join("");
+    return `<row r="${ri+1}">${cells}</row>`;
+  }).join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${cols}</cols><sheetData>${data}</sheetData></worksheet>`;
+}
+function buildXlsx(sheets){
+  const used = new Set();
+  const names = sheets.map((sh,i)=>{
+    let n = String(sh.name||("Feuille"+(i+1))).replace(/[\[\]\:\*\?\/\\]/g," ").trim().slice(0,31) || ("Feuille"+(i+1));
+    let base = n, k = 2;
+    while(used.has(n.toLowerCase())){ n = base.slice(0,28) + " " + k; k++; }
+    used.add(n.toLowerCase());
+    return n;
+  });
+  const files = [
+    { name:"[Content_Types].xml", content:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>` },
+    { name:"_rels/.rels", content:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+    { name:"xl/workbook.xml", content:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${names.map((n,i)=>`<sheet name="${xmlEsc(n)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")}</sheets></workbook>` },
+    { name:"xl/_rels/workbook.xml.rels", content:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
+    { name:"xl/styles.xml", content:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2B705"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>` }
+  ];
+  sheets.forEach((sh,i)=>files.push({ name:`xl/worksheets/sheet${i+1}.xml`, content: sheetXml(sh.rows) }));
+  return makeZip(files);
+}
+
+// ======================= COMITÉ DE CONSTRUCTION (séparé de la caisse) =======================
+let CST={entries:[],cats:[],ok:false,err:""},CSV="e",CSM="m",CED=null,CREN=null,CLASTD="",cmonth=today().slice(0,7);
+const nf0=n=>new Intl.NumberFormat("fr-FR").format(Math.round(n));
+const cin=()=>CST.entries.filter(x=>x.kind==="in"),cout=()=>CST.entries.filter(x=>x.kind==="out");
+const ccats=k=>CST.cats.filter(c=>c.kind===k).map(c=>c.nom);
+const callcats=k=>[...new Set(ccats(k).concat(CST.entries.filter(x=>x.kind===k).map(x=>x.c)))];
+async function loadCst(){
+  try{const d=await rpc("cst_load");CST.entries=d.entries||[];CST.cats=d.cats||[];CST.ok=true;CST.err=""}
+  catch(e){CST.ok=false;CST.err=e.net?"Pas de connexion : le comité de construction nécessite internet.":(/cst_load|schema cache/i.test(e.message)?"SETUP":e.message)}
+  if(tab==="cst")render();
+}
+async function cact(fn,args){ERR="";try{await rpc(fn,args);await loadCst()}catch(e){ERR=e.net?"Pas de connexion : cette action nécessite internet.":e.message;render()}}
+function cmbar(){return `<div class="mb"><button data-a="cpm" aria-label="Mois précédent">‹</button><input type="month" id="cmo" value="${cmonth}" aria-label="Mois"><button data-a="cnm" aria-label="Mois suivant">›</button></div>`}
+function cybar(){return `<div class="mb"><button data-a="cpy" aria-label="Année précédente">‹</button><input value="${cmonth.slice(0,4)}" readonly aria-label="Année"><button data-a="cny" aria-label="Année suivante">›</button></div>`}
+function cseg(){return `<div class="seg noprint">${[["e","Entrées"],["d","Dépenses"],["r","Rapport"],["c","Rubriques"]].map(x=>`<button class="sec ${CSV===x[0]?"on":""}" style="padding:10px 4px;font-size:13px" data-a="cv" data-v="${x[0]}">${x[1]}</button>`).join("")}</div>`}
+function citem(x){const s=x.kind;return `<div class="row"><i class="ic ${s}">${svg(s,18)}</i><div><b>${esc(x.c)}</b><small>${fd(x.d)}${x.n?" · "+esc(x.n):""}${x.par?" · "+esc(x.par):""}</small></div><span class="amt ${s}">${f(x.a)}</span><button class="x" data-a="ced" data-id="${x.id}" aria-label="Modifier">✎</button><button class="x" data-a="cdel" data-id="${x.id}" aria-label="Supprimer">✕</button></div>`}
+function clist(k){
+  const isIn=k==="in",arr=CST.entries.filter(x=>x.kind===k&&x.d.startsWith(cmonth)).sort((a,b)=>b.d.localeCompare(a.d));
+  const o=ccats(k).map(t=>`<option>${esc(t)}</option>`).join("");
+  return cmbar()+`<form class="card" data-f="c${k}"><h2>${isIn?"Nouvelle entrée du comité":"Nouvelle dépense du comité"}</h2>
+  <label>Date<input type="date" name="d" value="${CLASTD||today()}" required></label>
+  <label>${isIn?"Rubrique d’entrée":"Rubrique de dépense"}<select name="c">${o}</select></label>
+  <label>Ou créer une nouvelle rubrique (facultatif)<input name="nc" maxlength="40" placeholder="${isIn?"Ex. : Don d’un frère":"Ex. : Ciment"}"></label>
+  <label>Montant (FCFA)<input type="number" name="a" min="1" inputmode="numeric" required></label>
+  <label>${isIn?"Donateur ou précision (facultatif)":"Détail (facultatif)"}<input name="n" maxlength="80"></label>
+  <button class="pri ${isIn?"k-in":"k-out"}">Enregistrer</button></form>
+  <div class="card"><h2>${isIn?"Entrées":"Dépenses"} du mois : ${f(sum(arr))}</h2>${arr.length?arr.map(citem).join(""):`<p class="mut">Aucune ${isIn?"entrée":"dépense"} ce mois-ci. Utilise le formulaire ci-dessus.</p>`}</div>`;
+}
+function ccatsCard(k){
+  const isIn=k==="in",L=ccats(k),pr=S.me.principal;
+  return `<div class="card"><h2>Rubriques ${isIn?"d’entrées":"de dépenses"}</h2><p class="mut">Retirer une rubrique ne modifie pas les opérations déjà enregistrées.</p>${L.length?L.map(c=>CREN&&CREN.k===k&&CREN.n===c?`<form class="row" data-f="ccren" data-k="${k}" data-n="${esc(c)}"><input name="n" value="${esc(c)}" required maxlength="40" style="margin:0;flex:1"><button class="pri" style="width:auto;padding:10px 14px">OK</button><button type="button" class="x" data-a="crc">✕</button></form>`:`<div class="row"><div>${esc(c)}</div>${pr?`<button class="x" data-a="crn" data-k="${k}" data-n="${esc(c)}">Renommer</button><button class="x" data-a="cdc" data-k="${k}" data-n="${esc(c)}">Retirer</button>`:""}</div>`).join(""):'<p class="mut">Aucune rubrique pour le moment.</p>'}
+  <form data-f="ccat" data-k="${k}" style="margin-top:12px"><label>Nouvelle rubrique<input name="n" required maxlength="40" placeholder="${isIn?"Ex. : Offrande spéciale construction":"Ex. : Fer à béton, Main-d’œuvre, Sable…"}"></label><button class="pri">Ajouter</button></form></div>`;
+}
+function cper(){return CSM==="y"?cmonth.slice(0,4):CSM==="all"?"":cmonth}
+function clabel(){return CSM==="y"?"l’année "+cmonth.slice(0,4):CSM==="all"?"depuis le début":new Date(cmonth+"-01T12:00:00").toLocaleDateString("fr-FR",{month:"long",year:"numeric"})}
+function crows(per){return CST.entries.filter(x=>!per||x.d.startsWith(per)).sort((a,b)=>a.d.localeCompare(b.d))}
+function cbrk(arr,k,per){return callcats(k).map(c=>[c,sum(arr.filter(x=>x.c===c),per)]).filter(r=>r[1]).sort((a,b)=>b[1]-a[1])}
+function cbars(rows,tot){return rows.map(r=>`<div class="row"><div>${esc(r[0])}<div class="pb"><i style="width:${tot?r[1]/tot*100:0}%"></i></div></div><span>${f(r[1])}<small style="text-align:right">${tot?Math.round(r[1]/tot*100):0} %</small></span></div>`).join("")||'<p class="mut">Aucune donnée pour cette période.</p>'}
+function crep(){
+  const per=cper(),I=cin(),O=cout(),ti=sum(I,per),to=sum(O,per);
+  const upto=x=>CSM==="m"?x.d.slice(0,7)<=per:CSM==="y"?x.d.slice(0,4)<=per:true;
+  const cum=I.filter(upto).reduce((t,x)=>t+x.a,0)-O.filter(upto).reduce((t,x)=>t+x.a,0);
+  const sw=`<div class="seg noprint">${[["m","Mois"],["y","Année"],["all","Depuis le début"]].map(x=>`<button class="sec ${CSM===x[0]?"on":""}" style="padding:10px 4px;font-size:13px" data-a="cm" data-v="${x[0]}">${x[1]}</button>`).join("")}</div>`;
+  const bar=CSM==="y"?cybar():CSM==="m"?cmbar():"";
+  const top=`<div class="card"><h2>Bilan de ${esc(clabel())}</h2><div class="two"><div><small class="mut">Entrées</small><b>${f(ti)}</b></div><div><small class="mut">Dépenses</small><b>${f(to)}</b></div><div><small class="mut">Solde de la période</small><b>${f(ti-to)}</b></div></div>
+  ${ti?`<p class="mut" style="margin:10px 0 0">Les dépenses représentent <b>${Math.round(to/ti*100)} %</b> des entrées de la période.</p>`:""}
+  <p class="mut" style="margin:6px 0 0">Solde du comité à la fin de la période : <b>${f(cum)}</b></p></div>`;
+  let det="";
+  if(CSM==="y"){
+    const y=per,mi=[],mo=[];for(let i=1;i<=12;i++){const k=y+"-"+String(i).padStart(2,"0");mi.push(sum(I,k));mo.push(sum(O,k))}
+    const mx=Math.max(1,...mi,...mo),L="JFMAMJJASOND";
+    det=`<div class="card"><h2>Mois par mois</h2><div class="ch">${mi.map((v,i)=>`<div class="col"><div class="bars"><i class="bi" style="height:${v/mx*100}%"></i><i class="bo" style="height:${mo[i]/mx*100}%"></i></div><small>${L[i]}</small></div>`).join("")}</div><div class="lg"><b class="bi"></b>Entrées<b class="bo"></b>Dépenses</div></div>`;
+    det+=`<div class="card"><h2>Détail par mois</h2><div style="overflow-x:auto"><table class="num"><tr class="t"><td>Mois</td><td>Entrées</td><td>Dépenses</td><td>Solde</td></tr>${mi.map((v,i)=>`<tr><td>${MN[i]}</td><td>${nf0(v)}</td><td>${nf0(mo[i])}</td><td>${nf0(v-mo[i])}</td></tr>`).join("")}<tr class="t"><td>Total</td><td>${nf0(ti)}</td><td>${nf0(to)}</td><td>${nf0(ti-to)}</td></tr></table></div><p class="mut" style="margin:8px 0 0">Montants en FCFA.</p></div>`;
+  }else if(CSM==="all"){
+    const ys=[...new Set(CST.entries.map(x=>x.d.slice(0,4)))].sort();
+    det=`<div class="card"><h2>Détail par année</h2><div style="overflow-x:auto"><table class="num"><tr class="t"><td>Année</td><td>Entrées</td><td>Dépenses</td><td>Solde</td></tr>${ys.map(y=>`<tr><td>${y}</td><td>${nf0(sum(I,y))}</td><td>${nf0(sum(O,y))}</td><td>${nf0(sum(I,y)-sum(O,y))}</td></tr>`).join("")||'<tr><td class="mut" colspan="4">Aucune donnée</td></tr>'}<tr class="t"><td>Total</td><td>${nf0(ti)}</td><td>${nf0(to)}</td><td>${nf0(ti-to)}</td></tr></table></div><p class="mut" style="margin:8px 0 0">Montants en FCFA.</p></div>`;
+  }else{
+    const r=crows(per);
+    det=`<div class="card"><h2>Opérations du mois</h2>${r.length?`<div style="overflow-x:auto"><table class="num"><tr class="t"><td>Date</td><td>Rubrique</td><td>Montant</td></tr>${r.map(x=>`<tr><td>${fd(x.d)}</td><td style="text-align:left">${esc(x.c)}${x.n?` <small class="mut">· ${esc(x.n)}</small>`:""}</td><td class="${x.kind==="in"?"amt in":"amt out"}">${x.kind==="in"?"+":"−"} ${nf0(x.a)}</td></tr>`).join("")}</table></div><p class="mut" style="margin:8px 0 0">Montants en FCFA.</p>`:'<p class="mut">Aucune opération ce mois-ci.</p>'}</div>`;
+  }
+  const exp=`<div class="card noprint"><h2>Partager et exporter</h2><p><button class="sec" data-a="pr">Imprimer ou enregistrer en PDF</button><button class="sec" data-a="cexp">Exporter vers Excel (.xlsx)</button></p>
+  <p class="mut">Le résumé WhatsApp contient les totaux et les rubriques, sans noms de donateurs.</p><textarea id="crtxt" readonly rows="8">${esc(crepText())}</textarea>
+  <p style="margin:10px 0 0"><button class="sec" data-a="cwa">Envoyer par WhatsApp</button><button class="sec" data-a="cwc">Copier le texte</button></p></div>`;
+  return sw+bar+top+`<div class="card"><h2>Entrées par rubrique</h2>${cbars(cbrk(I,"in",per),ti)}</div><div class="card"><h2>Dépenses par rubrique</h2>${cbars(cbrk(O,"out",per),to)}</div>`+det+exp;
+}
+function crepText(){
+  const per=cper(),I=cin(),O=cout(),ti=sum(I,per),to=sum(O,per),tot=sum(I)-sum(O);
+  const L=["*Comité de construction*","🏗️ "+(S.name||"Église"),"📊 Bilan de "+clabel(),"","✅ Entrées : *"+nf0(ti)+" FCFA*","🔻 Dépenses : *"+nf0(to)+" FCFA*","💰 Solde de la période : *"+nf0(ti-to)+" FCFA*"];
+  const ri=cbrk(I,"in",per);if(ri.length){L.push("","*Entrées par rubrique*");ri.forEach(r=>L.push("• "+r[0]+" : "+nf0(r[1])+" FCFA"))}
+  const ro=cbrk(O,"out",per);if(ro.length){L.push("","*Dépenses par rubrique*");ro.forEach(r=>L.push("• "+r[0]+" : "+nf0(r[1])+" FCFA ("+(to?Math.round(r[1]/to*100):0)+" %)"))}
+  L.push("","🏦 Solde du comité depuis le début : *"+nf0(tot)+" FCFA*","","_Envoyé le "+fd(today())+" depuis l’appli de finances._");
+  return L.join("\n");
+}
+function dlb(blob,name){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}
+function cexp(){
+  const per=cper(),rows=crows(per);
+  if(!rows.length){ERR="Aucune opération à exporter pour cette période.";render();return}
+  const I=cin(),O=cout(),ti=sum(I,per),to=sum(O,per);
+  const sm=[["Rubrique","Type","Montant (FCFA)","% du type"]];
+  cbrk(I,"in",per).forEach(r=>sm.push([r[0],"Entrée",r[1],ti?Math.round(r[1]/ti*100)+" %":""]));
+  sm.push(["Total des entrées","",ti,""]);
+  cbrk(O,"out",per).forEach(r=>sm.push([r[0],"Dépense",r[1],to?Math.round(r[1]/to*100)+" %":""]));
+  sm.push(["Total des dépenses","",to,""],["Solde de la période","",ti-to,""]);
+  const dt=[["Date","Type","Rubrique","Montant (FCFA)","Détail","Enregistré par"]];
+  rows.forEach(x=>dt.push([fd(x.d),x.kind==="in"?"Entrée":"Dépense",x.c,+x.a,x.n||"",x.par||""]));
+  dlb(buildXlsx([{name:"Bilan",rows:sm},{name:"Détail",rows:dt}]),"comite-construction-"+(per||"complet")+".xlsx");
+}
+function cstView(){
+  if(CST.err==="SETUP")return `<div class="card"><h2>🏗️ Comité de construction</h2><p>Cette rubrique n’est pas encore activée sur le serveur.</p><p class="mut">Lance le fichier <b>comite-construction.sql</b> dans Supabase (projet finances-eglise), puis reviens ici.</p><button class="sec" data-a="cr">Réessayer</button></div>`;
+  if(CST.err)return `<div class="card" style="color:var(--bad)">${esc(CST.err)}</div><button class="sec" data-a="cr">Réessayer</button>`;
+  if(!CST.ok)return `<div class="card"><h2>🏗️ Comité de construction</h2><p class="mut">Chargement…</p></div>`;
+  const ti=sum(cin()),to=sum(cout());
+  const hero=`<div class="hero"><small>🏗️ Comité de construction · à part de la caisse de l’église</small><div class="big">${nf0(ti-to)}<i>FCFA</i></div>
+  <div class="sub2"><div><small><span class="dot" style="background:var(--ok)">${svg("in",12)}</span>Entrées</small><b>${f(ti)}</b></div><div><small><span class="dot" style="background:var(--out)">${svg("out",12)}</span>Dépenses</small><b>${f(to)}</b></div></div>
+  <div class="foot"><span>Solde du comité depuis le début</span><b>${f(ti-to)}</b></div></div>`;
+  const body=CSV==="e"?clist("in"):CSV==="d"?clist("out"):CSV==="r"?crep():`<div class="card"><h2>Rubriques du comité</h2><p class="mut">Tu choisis toi-même les noms : types de dépenses (ciment, fer, main-d’œuvre…) et sources d’entrées. ${S.me.principal?"":"Seul l’administrateur principal peut renommer ou retirer une rubrique."}</p></div>`+ccatsCard("out")+ccatsCard("in");
+  return hero+cseg()+body;
+}
 function render(){
   if(!S.me){$("#app").innerHTML=login();$("#tabs").style.display="none";$("#bell").style.display="none";return}
   $("#tabs").style.display="";$("#bell").style.display="";
-  $("#app").innerHTML=(ERR?`<div class="card" style="color:var(--bad)">${esc(ERR)}</div>`:"")+(MORE.includes(tab)?'<button class="sec" data-t="plus" style="margin:0 0 12px">‹ Plus</button>':"")+{home:home,in:()=>list("in"),out:()=>list("out"),bud:budget,proj:proj,jr:journal,plus:plusMenu,rep:rep}[tab]();
+  $("#app").innerHTML=(ERR?`<div class="card" style="color:var(--bad)">${esc(ERR)}</div>`:"")+(MORE.includes(tab)?'<button class="sec" data-t="plus" style="margin:0 0 12px">‹ Plus</button>':"")+{home:home,in:()=>list("in"),out:()=>list("out"),bud:budget,proj:proj,jr:journal,plus:plusMenu,rep:rep,cst:cstView}[tab]();
   $("#tabs").innerHTML=NAV.map(t=>{const on=t[0]===tab||(t[0]==="plus"&&MORE.includes(tab));return `<button data-t="${t[0]}" class="${on?"on":""}"${on?' aria-current="page"':""}>${svg(t[0])}${t[1]}</button>`}).join("");
   $("#ttl").textContent=S.name||"Caisse de l’Église";
 }
 
 document.addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
-  if(b.dataset.t){tab=b.dataset.t;ED=null;REN=null;ERR="";NOTE=null;drawNote();render();scrollTo(0,0);return}
+  if(b.dataset.t){tab=b.dataset.t;ED=null;REN=null;CED=null;CREN=null;ERR="";NOTE=null;drawNote();render();scrollTo(0,0);if(tab==="cst")loadCst();return}
   const a=b.dataset.a;
   if(a==="ed"){const x=S[b.dataset.k].find(y=>y.id===b.dataset.id);if(!x)return;ED={k:b.dataset.k,id:x.id};render();const fm=$("form[data-f]");fm.d.value=x.d;if(![...fm.c.options].some(o=>o.value===x.c))fm.c.add(new Option(x.c,x.c));fm.c.value=x.c;fm.a.value=x.a;fm.n.value=x.n||"";fm.querySelector(".pri").textContent="Enregistrer la modification";fm.scrollIntoView();return}
   if(a==="pm"||a==="nm"){const p=month.split("-").map(Number);month=ym(new Date(p[0],p[1]-1+(a==="nm"?1:-1),1));render();return}
@@ -475,14 +642,27 @@ document.addEventListener("click",e=>{
   if(a==="vs"){speak("Administrateur principal a ajouté une entrée");return}
   if(a==="nc"){try{navigator.clipboard.writeText(NTF);b.textContent="Copié"}catch(x){}return}
   if(a==="nx"){disablePush();return}
-  if(a==="lo"){try{localStorage.removeItem("fin-cache")}catch(x){}NTF="";NTM="";NOTE=null;drawNote();try{localStorage.removeItem("fin-code")}catch(x){}CODE="";S.me=null;ERR="";render();return}
-  if(a==="del"||a==="dp"||a==="up"||a==="da"||a==="dc"){
+  if(a==="lo"){CST={entries:[],cats:[],ok:false,err:""};try{localStorage.removeItem("fin-cache")}catch(x){}NTF="";NTM="";NOTE=null;drawNote();try{localStorage.removeItem("fin-code")}catch(x){}CODE="";S.me=null;ERR="";render();return}
+  if(a==="cv"){CSV=b.dataset.v;CED=null;CREN=null;ERR="";render();return}
+  if(a==="cm"){CSM=b.dataset.v;render();return}
+  if(a==="cr"){CST.err="";CST.ok=false;render();loadCst();return}
+  if(a==="cpm"||a==="cnm"){const p=cmonth.split("-").map(Number);cmonth=ym(new Date(p[0],p[1]-1+(a==="cnm"?1:-1),1));render();return}
+  if(a==="cpy"||a==="cny"){cmonth=(+cmonth.slice(0,4)+(a==="cny"?1:-1))+cmonth.slice(4);render();return}
+  if(a==="crn"){CREN={k:b.dataset.k,n:b.dataset.n};render();setTimeout(()=>{const i=document.querySelector('#app form[data-f="ccren"] input');if(i){i.focus();i.select()}},0);return}
+  if(a==="crc"){CREN=null;render();return}
+  if(a==="cexp"){cexp();return}
+  if(a==="cwa"){window.open("https://wa.me/?text="+encodeURIComponent(crepText()),"_blank");return}
+  if(a==="cwc"){try{navigator.clipboard.writeText(crepText());b.textContent="Copié"}catch(x){const e=$("#crtxt");if(e)e.select()}return}
+  if(a==="ced"){const x=CST.entries.find(y=>y.id===b.dataset.id);if(!x)return;CED={k:x.kind,id:x.id};CSV=x.kind==="in"?"e":"d";render();const fm=$("form[data-f]");fm.d.value=x.d;if(![...fm.c.options].some(o=>o.value===x.c))fm.c.add(new Option(x.c,x.c));fm.c.value=x.c;fm.a.value=x.a;fm.n.value=x.n||"";fm.querySelector(".pri").textContent="Enregistrer la modification";fm.scrollIntoView();return}
+  if(a==="del"||a==="dp"||a==="up"||a==="da"||a==="dc"||a==="cdel"||a==="cdc"){
     if(!b.classList.contains("arm")){const t=b.textContent;b.classList.add("arm");b.textContent="Confirmer ?";setTimeout(()=>{b.classList.remove("arm");b.textContent=t},3000);return}
     if(a==="del")act("fin_delete_entry",{p_id:b.dataset.id});
     if(a==="dp")act("fin_delete_project",{p_id:b.dataset.id});
     if(a==="up"){const p=S.proj.find(p=>p.id===b.dataset.id);p&&p.pay.length&&act("fin_delete_payment",{p_id:p.pay[p.pay.length-1].id})}
     if(a==="da")act("fin_delete_admin",{p_id:b.dataset.id});
     if(a==="dc")act("fin_delete_cat",{p_kind:b.dataset.k,p_nom:b.dataset.n});
+    if(a==="cdel")cact("cst_delete_entry",{p_id:b.dataset.id});
+    if(a==="cdc")cact("cst_del_cat",{p_kind:b.dataset.k,p_nom:b.dataset.n});
   }
 });
 document.addEventListener("submit",async e=>{
@@ -490,6 +670,18 @@ document.addEventListener("submit",async e=>{
   if(k==="login"){CODE=v.c.trim();ERR="";try{await loadAll();try{localStorage.setItem("fin-code",CODE)}catch(x){}}catch(x){ERR=x.message;CODE=""}render()}
   else if(k==="in"||k==="out"){const x=ED&&ED.k===k?ED.id:null;month=v.d.slice(0,7);LASTD=v.d;ED=null;
     x?await act("fin_update_entry",{p_id:x,p_d:v.d,p_c:v.c,p_a:+v.a,p_n:v.n.trim()}):await addEntry(k,v)}
+  else if(k==="cin"||k==="cout"){
+    const kind=k.slice(1),nc=(v.nc||"").trim(),c=nc||v.c;
+    if(!c){ERR="Choisis ou crée une rubrique.";render();return}
+    const x=CED&&CED.k===kind?CED.id:null;cmonth=v.d.slice(0,7);CLASTD=v.d;CED=null;ERR="";
+    try{
+      if(nc&&!ccats(kind).includes(nc))await rpc("cst_add_cat",{p_kind:kind,p_nom:nc});
+      x?await rpc("cst_update_entry",{p_id:x,p_d:v.d,p_c:c,p_a:+v.a,p_n:(v.n||"").trim()}):await rpc("cst_add_entry",{p_kind:kind,p_d:v.d,p_c:c,p_a:+v.a,p_n:(v.n||"").trim(),p_cid:uid()+uid()});
+      await loadCst();
+    }catch(e){ERR=e.net?"Pas de connexion : cette action nécessite internet.":e.message;render()}
+  }
+  else if(k==="ccat")await cact("cst_add_cat",{p_kind:f.dataset.k,p_nom:v.n.trim()});
+  else if(k==="ccren"){CREN=null;await cact("cst_rename_cat",{p_kind:f.dataset.k,p_old:f.dataset.n,p_new:v.n.trim()})}
   else if(k==="proj")await act("fin_add_project",{p_n:v.n.trim(),p_k:v.k,p_t:+v.a});
   else if(k==="pay")await act("fin_add_payment",{p_project:f.dataset.id,p_d:v.d,p_a:+v.a,p_n:(v.n||"").trim()});
   else if(k==="cat")await act("fin_add_cat",{p_kind:f.dataset.k,p_nom:v.n.trim()});
@@ -500,6 +692,7 @@ document.addEventListener("submit",async e=>{
 document.addEventListener("change",e=>{
   const t=e.target;
   if(t.id==="mo"&&t.value){month=t.value;render()}
+  else if(t.id==="cmo"&&t.value){cmonth=t.value;render()}
   else if(t.dataset.b)act("fin_set_budget",{p_cat:t.dataset.b,p_amount:+t.value||0});
   else if(t.dataset.nm!==undefined)act("fin_set_name",{p_name:t.value.trim()});
 });
@@ -512,6 +705,7 @@ window.addEventListener("offline",()=>{OFFLINE=true;drawOff()});
 setInterval(async()=>{if(!S.me||document.hidden)return;
   if(UPD&&!isBusy()){applyUpd();return}
   try{await syncQ();await loadAll();OFFLINE=false;drawOff()}catch(e){if(e.net){OFFLINE=true;drawOff()}return}
+  if(tab==="cst"&&!isBusy())await loadCst();
   if(!isBusy())render();
   chkUpdate()},20000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){chkUpdate();syncQ()}});
