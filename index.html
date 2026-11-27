@@ -224,11 +224,11 @@ async function syncQ(){
   }catch(e){}finally{SYNCING=false}
   drawOff();render();
 }
-const BUILD="b20261125a";let lastChk=0,NEWB="";
+const BUILD="b20261125b";let lastChk=0,NEWB="";
 function isBusy(){
   const f=document.activeElement,inForm=f&&f.closest&&f.closest("#app form");
   const dirty=[...document.querySelectorAll("#app form input,#app form select,#app form textarea")].some(i=>i.tagName==="SELECT"?[...i.options].some(o=>o.selected!==o.defaultSelected):i.value!==i.defaultValue);
-  return !!(ED||REN||CED||CREN||inForm||dirty);
+  return !!(ED||REN||FS.c.ed||FS.c.ren||FS.f.ed||FS.f.ren||inForm||dirty);
 }
 function goUpd(){
   let n=0;try{n=+sessionStorage.getItem("upd-n")||0;sessionStorage.setItem("upd-n",String(n+1))}catch(e){}
@@ -322,8 +322,8 @@ const ocats=()=>S.cats.length?S.cats:OUT_C;
 const icats=()=>S.icats.length?S.icats:IN_T;
 const allin=()=>[...new Set(icats().concat(S.in.map(x=>x.c)))];
 const allc=()=>[...new Set(ocats().concat(S.out.map(x=>x.c)))];
-const NAV=[["home","Accueil"],["in","Entrées"],["out","Dépenses"],["rep","Rapports"],["plus","Plus"]],MORE=["bud","proj","jr","cst"];
-const ICO={home:'<path d="M4 11l8-7 8 7v9H4z"/>',in:'<path d="M17 7L7 17M7 9v8h8"/>',out:'<path d="M7 17L17 7M9 7h8v8"/>',rep:'<path d="M5 20V10M12 20V4M19 20v-7"/>',plus:'<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',bud:'<path d="M3 7h18v12H3zM3 11h18M7 15h3"/>',proj:'<path d="M4 20V8l8-4 8 4v12M9 20v-6h6v6"/>',jr:'<path d="M6 4h12v16H6zM9 9h6M9 13h6M9 17h4"/>',cst:'<path d="M4 21V5M4 6h13l3 4M17 6v5M2 21h8M12 9l-6 6"/>'};
+const NAV=[["home","Accueil"],["in","Entrées"],["out","Dépenses"],["rep","Rapports"],["plus","Plus"]],MORE=["bud","proj","jr","cst","fam"];
+const ICO={home:'<path d="M4 11l8-7 8 7v9H4z"/>',in:'<path d="M17 7L7 17M7 9v8h8"/>',out:'<path d="M7 17L17 7M9 7h8v8"/>',rep:'<path d="M5 20V10M12 20V4M19 20v-7"/>',plus:'<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',bud:'<path d="M3 7h18v12H3zM3 11h18M7 15h3"/>',proj:'<path d="M4 20V8l8-4 8 4v12M9 20v-6h6v6"/>',jr:'<path d="M6 4h12v16H6zM9 9h6M9 13h6M9 17h4"/>',cst:'<path d="M4 21V5M4 6h13l3 4M17 6v5M2 21h8M12 9l-6 6"/>',fam:'<path d="M4 11l8-7 8 7v9H4zM9 20v-5h6v5"/>'};
 const svg=(k,w)=>`<svg width="${w||22}" height="${w||22}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
 const MN=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const f=n=>new Intl.NumberFormat("fr-FR").format(Math.round(n))+" FCFA";
@@ -341,7 +341,7 @@ function mbar(){return `<div class="mb"><button data-a="pm" aria-label="Mois pr�
 function item(x,k){const s=k||x.s||"out";return `<div class="row"><i class="ic ${s}">${svg(s,18)}</i><div><b>${esc(x.c)}</b><small>${fd(x.d)}${x.n?" · "+esc(x.n):""}${x.par?" · "+esc(x.par):""}${x.pending?" · ⏳ en attente d’envoi":""}</small></div><span class="amt ${s}">${f(x.a)}</span>${k?(x.pending?`<button class="x" data-a="dq" data-id="${x.cid}">Annuler</button>`:`<button class="x" data-a="ed" data-k="${k}" data-id="${x.id}" aria-label="Modifier">✎</button><button class="x" data-a="del" data-k="${k}" data-id="${x.id}" aria-label="Supprimer">✕</button>`):""}</div>`}
 
 function plusMenu(){
-  const it=[["bud","Budget","Fixer et suivre le budget de chaque rubrique"],["proj","Projets et dettes","Suivre les projets et les remboursements"],["cst","Comité de construction","Entrées et dépenses du projet de construction, à part de la caisse"],["jr","Journal","Voir toutes les actions des administrateurs"]];
+  const it=[["bud","Budget","Fixer et suivre le budget de chaque rubrique"],["proj","Projets et dettes","Suivre les projets et les remboursements"],["cst","Comité de construction","Entrées et dépenses du projet de construction, à part de la caisse"],["jr","Journal","Voir toutes les actions des administrateurs"]].concat(S.me.principal?[["fam","Budget familial","Privé : visible par toi seul, protégé par un code"]]:[]);
   return `<div class="card"><h2>Plus</h2>${it.map(x=>`<button class="mrow" data-t="${x[0]}"><i class="ic mo">${svg(x[0])}</i><span><b>${x[1]}</b><small>${x[2]}</small></span><em>›</em></button>`).join("")}</div>`;
 }
 function home(){
@@ -513,115 +513,166 @@ function buildXlsx(sheets){
   return makeZip(files);
 }
 
-// ======================= COMITÉ DE CONSTRUCTION (séparé de la caisse) =======================
-let CST={entries:[],cats:[],ok:false,err:""},CSV="e",CSM="m",CED=null,CREN=null,CLASTD="",cmonth=today().slice(0,7);
+// ======================= RUBRIQUES AUTONOMES (séparées de la caisse de l’église) =======================
+// c = Comité de construction · f = Budget familial (privé, protégé par un code personnel)
+let FAMCODE="";
+function newFS(){return{entries:[],cats:[],budget:{},ok:false,err:"",msg:"",setup:null,v:"e",rm:"m",mo:today().slice(0,7),ed:null,ren:null,lastd:""}}
+const FM={
+ c:{k:"c",tab:"cst",ic:"🏗️",name:"Comité de construction",sub:"à part de la caisse de l’église",pre:"cst_",file:"comite-construction",own:false,bud:false},
+ f:{k:"f",tab:"fam",ic:"🏠",name:"Budget familial",sub:"privé : visible par toi seul",pre:"fam_",file:"budget-familial",own:true,bud:true}
+};
+let FS={c:newFS(),f:newFS()};
+const modByTab=t=>Object.values(FM).find(m=>m.tab===t);
 const nf0=n=>new Intl.NumberFormat("fr-FR").format(Math.round(n));
-const cin=()=>CST.entries.filter(x=>x.kind==="in"),cout=()=>CST.entries.filter(x=>x.kind==="out");
-const ccats=k=>CST.cats.filter(c=>c.kind===k).map(c=>c.nom);
-const callcats=k=>[...new Set(ccats(k).concat(CST.entries.filter(x=>x.kind===k).map(x=>x.c)))];
-async function loadCst(){
-  try{const d=await rpc("cst_load");CST.entries=d.entries||[];CST.cats=d.cats||[];CST.ok=true;CST.err=""}
-  catch(e){CST.ok=false;CST.err=e.net?"Pas de connexion : le comité de construction nécessite internet.":(/cst_load|schema cache/i.test(e.message)?"SETUP":e.message)}
-  if(tab==="cst")render();
+const fE=(m,k)=>FS[m.k].entries.filter(x=>x.kind===k);
+const fcats=(m,k)=>FS[m.k].cats.filter(c=>c.kind===k).map(c=>c.nom);
+const fall=(m,k)=>[...new Set(fcats(m,k).concat(fE(m,k).map(x=>x.c)))];
+const frpc=(m,fn,a)=>rpc(m.pre+fn,Object.assign(m.own?{p_fam:FAMCODE}:{},a||{}));
+const badFam=e=>/code du budget familial/i.test(e.message||"");
+async function loadMod(m){
+  const s=FS[m.k];
+  try{
+    if(m.own&&!FAMCODE){const d=await rpc("fam_status");s.setup=!d.configured;s.err=""}
+    else{
+      const d=await frpc(m,"load");
+      s.entries=d.entries||[];s.cats=d.cats||[];s.budget=Object.fromEntries((d.budget||[]).map(b=>[b.cat,+b.amount]));s.ok=true;s.err=""
+    }
+  }catch(e){
+    s.ok=false;
+    if(m.own&&badFam(e)){FAMCODE="";s.setup=false;s.msg="Code incorrect.";s.err=""}
+    else s.err=e.net?"Pas de connexion : cette rubrique nécessite internet.":(new RegExp(m.pre+"(load|status)|schema cache","i").test(e.message)?"SETUP":e.message);
+  }
+  if(tab===m.tab)render();
 }
-async function cact(fn,args){ERR="";try{await rpc(fn,args);await loadCst()}catch(e){ERR=e.net?"Pas de connexion : cette action nécessite internet.":e.message;render()}}
-function cmbar(){return `<div class="mb"><button data-a="cpm" aria-label="Mois précédent">‹</button><input type="month" id="cmo" value="${cmonth}" aria-label="Mois"><button data-a="cnm" aria-label="Mois suivant">›</button></div>`}
-function cybar(){return `<div class="mb"><button data-a="cpy" aria-label="Année précédente">‹</button><input value="${cmonth.slice(0,4)}" readonly aria-label="Année"><button data-a="cny" aria-label="Année suivante">›</button></div>`}
-function cseg(){return `<div class="seg noprint">${[["e","Entrées"],["d","Dépenses"],["r","Rapport"],["c","Rubriques"]].map(x=>`<button class="sec ${CSV===x[0]?"on":""}" style="padding:10px 4px;font-size:13px" data-a="cv" data-v="${x[0]}">${x[1]}</button>`).join("")}</div>`}
-function citem(x){const s=x.kind;return `<div class="row"><i class="ic ${s}">${svg(s,18)}</i><div><b>${esc(x.c)}</b><small>${fd(x.d)}${x.n?" · "+esc(x.n):""}${x.par?" · "+esc(x.par):""}</small></div><span class="amt ${s}">${f(x.a)}</span><button class="x" data-a="ced" data-id="${x.id}" aria-label="Modifier">✎</button><button class="x" data-a="cdel" data-id="${x.id}" aria-label="Supprimer">✕</button></div>`}
-function clist(k){
-  const isIn=k==="in",arr=CST.entries.filter(x=>x.kind===k&&x.d.startsWith(cmonth)).sort((a,b)=>b.d.localeCompare(a.d));
-  const o=ccats(k).map(t=>`<option>${esc(t)}</option>`).join("");
-  return cmbar()+`<form class="card" data-f="c${k}"><h2>${isIn?"Nouvelle entrée du comité":"Nouvelle dépense du comité"}</h2>
-  <label>Date<input type="date" name="d" value="${CLASTD||today()}" required></label>
-  <label>${isIn?"Rubrique d’entrée":"Rubrique de dépense"}<select name="c">${o}</select></label>
-  <label>Ou créer une nouvelle rubrique (facultatif)<input name="nc" maxlength="40" placeholder="${isIn?"Ex. : Don d’un frère":"Ex. : Ciment"}"></label>
+async function fact(m,fn,a){
+  ERR="";
+  try{await frpc(m,fn,a);await loadMod(m)}
+  catch(e){ERR=e.net?"Pas de connexion : cette action nécessite internet.":e.message;if(m.own&&badFam(e)){FAMCODE="";FS.f=newFS();FS.f.setup=false;FS.f.msg="Code incorrect."}render()}
+}
+function fmbar(m){return `<div class="mb"><button data-a="fpm" data-m="${m.k}" aria-label="Mois précédent">‹</button><input type="month" data-fmo="${m.k}" value="${FS[m.k].mo}" aria-label="Mois"><button data-a="fnm" data-m="${m.k}" aria-label="Mois suivant">›</button></div>`}
+function fybar(m){return `<div class="mb"><button data-a="fpy" data-m="${m.k}" aria-label="Année précédente">‹</button><input value="${FS[m.k].mo.slice(0,4)}" readonly aria-label="Année"><button data-a="fny" data-m="${m.k}" aria-label="Année suivante">›</button></div>`}
+function fseg(m){const s=FS[m.k];return `<div class="seg noprint">${[["e","Entrées"],["d","Dépenses"],["r","Rapport"],["c",m.own?"Réglages":"Rubriques"]].map(x=>`<button class="sec ${s.v===x[0]?"on":""}" style="padding:10px 4px;font-size:13px" data-a="fv" data-m="${m.k}" data-v="${x[0]}">${x[1]}</button>`).join("")}</div>`}
+function fitem(m,x){const s=x.kind;return `<div class="row"><i class="ic ${s}">${svg(s,18)}</i><div><b>${esc(x.c)}</b><small>${fd(x.d)}${x.n?" · "+esc(x.n):""}${x.par&&!m.own?" · "+esc(x.par):""}</small></div><span class="amt ${s}">${f(x.a)}</span><button class="x" data-a="fed" data-m="${m.k}" data-id="${x.id}" aria-label="Modifier">✎</button><button class="x" data-a="fdel" data-m="${m.k}" data-id="${x.id}" aria-label="Supprimer">✕</button></div>`}
+function flist(m,k){
+  const s=FS[m.k],isIn=k==="in",arr=fE(m,k).filter(x=>x.d.startsWith(s.mo)).sort((a,b)=>b.d.localeCompare(a.d));
+  const o=fcats(m,k).map(t=>`<option>${esc(t)}</option>`).join("");
+  const T=m.own?(isIn?"Nouveau revenu":"Nouvelle dépense familiale"):(isIn?"Nouvelle entrée du comité":"Nouvelle dépense du comité");
+  return fmbar(m)+`<form class="card" data-f="fent" data-m="${m.k}" data-k="${k}"><h2>${T}</h2>
+  <label>Date<input type="date" name="d" value="${s.lastd||today()}" required></label>
+  <label>${isIn?(m.own?"Source du revenu":"Rubrique d’entrée"):"Rubrique de dépense"}<select name="c">${o}</select></label>
+  <label>Ou créer une nouvelle rubrique (facultatif)<input name="nc" maxlength="40" placeholder="${isIn?(m.own?"Ex. : Salaire, Commerce…":"Ex. : Don d’un frère"):(m.own?"Ex. : Scolarité, Loyer, Santé…":"Ex. : Ciment")}"></label>
   <label>Montant (FCFA)<input type="number" name="a" min="1" inputmode="numeric" required></label>
-  <label>${isIn?"Donateur ou précision (facultatif)":"Détail (facultatif)"}<input name="n" maxlength="80"></label>
+  <label>${isIn?(m.own?"Précision (facultatif)":"Donateur ou précision (facultatif)"):"Détail (facultatif)"}<input name="n" maxlength="80"></label>
   <button class="pri ${isIn?"k-in":"k-out"}">Enregistrer</button></form>
-  <div class="card"><h2>${isIn?"Entrées":"Dépenses"} du mois : ${f(sum(arr))}</h2>${arr.length?arr.map(citem).join(""):`<p class="mut">Aucune ${isIn?"entrée":"dépense"} ce mois-ci. Utilise le formulaire ci-dessus.</p>`}</div>`;
+  <div class="card"><h2>${isIn?(m.own?"Revenus":"Entrées"):"Dépenses"} du mois : ${f(sum(arr))}</h2>${arr.length?arr.map(x=>fitem(m,x)).join(""):`<p class="mut">Aucune ${isIn?(m.own?"entrée d’argent":"entrée"):"dépense"} ce mois-ci. Utilise le formulaire ci-dessus.</p>`}</div>`;
 }
-function ccatsCard(k){
-  const isIn=k==="in",L=ccats(k),pr=S.me.principal;
-  return `<div class="card"><h2>Rubriques ${isIn?"d’entrées":"de dépenses"}</h2><p class="mut">Retirer une rubrique ne modifie pas les opérations déjà enregistrées.</p>${L.length?L.map(c=>CREN&&CREN.k===k&&CREN.n===c?`<form class="row" data-f="ccren" data-k="${k}" data-n="${esc(c)}"><input name="n" value="${esc(c)}" required maxlength="40" style="margin:0;flex:1"><button class="pri" style="width:auto;padding:10px 14px">OK</button><button type="button" class="x" data-a="crc">✕</button></form>`:`<div class="row"><div>${esc(c)}</div>${pr?`<button class="x" data-a="crn" data-k="${k}" data-n="${esc(c)}">Renommer</button><button class="x" data-a="cdc" data-k="${k}" data-n="${esc(c)}">Retirer</button>`:""}</div>`).join(""):'<p class="mut">Aucune rubrique pour le moment.</p>'}
-  <form data-f="ccat" data-k="${k}" style="margin-top:12px"><label>Nouvelle rubrique<input name="n" required maxlength="40" placeholder="${isIn?"Ex. : Offrande spéciale construction":"Ex. : Fer à béton, Main-d’œuvre, Sable…"}"></label><button class="pri">Ajouter</button></form></div>`;
+function fcatsCard(m,k){
+  const s=FS[m.k],isIn=k==="in",L=fcats(m,k),pr=m.own||S.me.principal;
+  return `<div class="card"><h2>Rubriques ${isIn?(m.own?"de revenus":"d’entrées"):"de dépenses"}</h2><p class="mut">Retirer une rubrique ne modifie pas les opérations déjà enregistrées.</p>${L.length?L.map(c=>s.ren&&s.ren.k===k&&s.ren.n===c?`<form class="row" data-f="fren" data-m="${m.k}" data-k="${k}" data-n="${esc(c)}"><input name="n" value="${esc(c)}" required maxlength="40" style="margin:0;flex:1"><button class="pri" style="width:auto;padding:10px 14px">OK</button><button type="button" class="x" data-a="frc" data-m="${m.k}">✕</button></form>`:`<div class="row"><div>${esc(c)}</div>${pr?`<button class="x" data-a="frn" data-m="${m.k}" data-k="${k}" data-n="${esc(c)}">Renommer</button><button class="x" data-a="fdc" data-m="${m.k}" data-k="${k}" data-n="${esc(c)}">Retirer</button>`:""}</div>`).join(""):'<p class="mut">Aucune rubrique pour le moment.</p>'}
+  <form data-f="fcat" data-m="${m.k}" data-k="${k}" style="margin-top:12px"><label>Nouvelle rubrique<input name="n" required maxlength="40" placeholder="${isIn?(m.own?"Ex. : Salaire, Commerce…":"Ex. : Offrande spéciale construction"):(m.own?"Ex. : Scolarité, Loyer, Santé, Alimentation…":"Ex. : Fer à béton, Main-d’œuvre, Sable…")}"></label><button class="pri">Ajouter</button></form></div>`;
 }
-function cper(){return CSM==="y"?cmonth.slice(0,4):CSM==="all"?"":cmonth}
-function clabel(){return CSM==="y"?"l’année "+cmonth.slice(0,4):CSM==="all"?"depuis le début":new Date(cmonth+"-01T12:00:00").toLocaleDateString("fr-FR",{month:"long",year:"numeric"})}
-function crows(per){return CST.entries.filter(x=>!per||x.d.startsWith(per)).sort((a,b)=>a.d.localeCompare(b.d))}
-function cbrk(arr,k,per){return callcats(k).map(c=>[c,sum(arr.filter(x=>x.c===c),per)]).filter(r=>r[1]).sort((a,b)=>b[1]-a[1])}
-function cbars(rows,tot){return rows.map(r=>`<div class="row"><div>${esc(r[0])}<div class="pb"><i style="width:${tot?r[1]/tot*100:0}%"></i></div></div><span>${f(r[1])}<small style="text-align:right">${tot?Math.round(r[1]/tot*100):0} %</small></span></div>`).join("")||'<p class="mut">Aucune donnée pour cette période.</p>'}
-function crep(){
-  const per=cper(),I=cin(),O=cout(),ti=sum(I,per),to=sum(O,per);
-  const upto=x=>CSM==="m"?x.d.slice(0,7)<=per:CSM==="y"?x.d.slice(0,4)<=per:true;
+function fbudgetCard(m){
+  const s=FS[m.k],cats=fall(m,"out");
+  return `<div class="card"><h2>Budget mensuel par rubrique</h2><p class="mut">Fixe un montant par rubrique de dépense. Il sert de repère dans le rapport.</p>${cats.length?cats.map(c=>`<label>${esc(c)}<input type="number" min="0" inputmode="numeric" data-fb="${esc(c)}" data-m="${m.k}" value="${s.budget[c]||""}" placeholder="Budget du mois"></label>`).join(""):'<p class="mut">Ajoute d’abord des rubriques de dépenses.</p>'}</div>`;
+}
+const fper=m=>{const s=FS[m.k];return s.rm==="y"?s.mo.slice(0,4):s.rm==="all"?"":s.mo};
+const flabel=m=>{const s=FS[m.k];return s.rm==="y"?"l’année "+s.mo.slice(0,4):s.rm==="all"?"depuis le début":new Date(s.mo+"-01T12:00:00").toLocaleDateString("fr-FR",{month:"long",year:"numeric"})};
+const frows=(m,per)=>FS[m.k].entries.filter(x=>!per||x.d.startsWith(per)).sort((a,b)=>a.d.localeCompare(b.d));
+const fbrk=(m,arr,k,per)=>fall(m,k).map(c=>[c,sum(arr.filter(x=>x.c===c),per)]).filter(r=>r[1]).sort((a,b)=>b[1]-a[1]);
+const fbars=(rows,tot)=>rows.map(r=>`<div class="row"><div>${esc(r[0])}<div class="pb"><i style="width:${tot?r[1]/tot*100:0}%"></i></div></div><span>${f(r[1])}<small style="text-align:right">${tot?Math.round(r[1]/tot*100):0} %</small></span></div>`).join("")||'<p class="mut">Aucune donnée pour cette période.</p>';
+function frep(m){
+  const s=FS[m.k],per=fper(m),I=fE(m,"in"),O=fE(m,"out"),ti=sum(I,per),to=sum(O,per);
+  const upto=x=>s.rm==="m"?x.d.slice(0,7)<=per:s.rm==="y"?x.d.slice(0,4)<=per:true;
   const cum=I.filter(upto).reduce((t,x)=>t+x.a,0)-O.filter(upto).reduce((t,x)=>t+x.a,0);
-  const sw=`<div class="seg noprint">${[["m","Mois"],["y","Année"],["all","Depuis le début"]].map(x=>`<button class="sec ${CSM===x[0]?"on":""}" style="padding:10px 4px;font-size:13px" data-a="cm" data-v="${x[0]}">${x[1]}</button>`).join("")}</div>`;
-  const bar=CSM==="y"?cybar():CSM==="m"?cmbar():"";
-  const top=`<div class="card"><h2>Bilan de ${esc(clabel())}</h2><div class="two"><div><small class="mut">Entrées</small><b>${f(ti)}</b></div><div><small class="mut">Dépenses</small><b>${f(to)}</b></div><div><small class="mut">Solde de la période</small><b>${f(ti-to)}</b></div></div>
-  ${ti?`<p class="mut" style="margin:10px 0 0">Les dépenses représentent <b>${Math.round(to/ti*100)} %</b> des entrées de la période.</p>`:""}
-  <p class="mut" style="margin:6px 0 0">Solde du comité à la fin de la période : <b>${f(cum)}</b></p></div>`;
+  const sw=`<div class="seg noprint">${[["m","Mois"],["y","Année"],["all","Depuis le début"]].map(x=>`<button class="sec ${s.rm===x[0]?"on":""}" style="padding:10px 4px;font-size:13px" data-a="fm" data-m="${m.k}" data-v="${x[0]}">${x[1]}</button>`).join("")}</div>`;
+  const bar=s.rm==="y"?fybar(m):s.rm==="m"?fmbar(m):"";
+  const top=`<div class="card"><h2>Bilan de ${esc(flabel(m))}</h2><div class="two"><div><small class="mut">${m.own?"Revenus":"Entrées"}</small><b>${f(ti)}</b></div><div><small class="mut">Dépenses</small><b>${f(to)}</b></div><div><small class="mut">Solde de la période</small><b>${f(ti-to)}</b></div></div>
+  ${ti?`<p class="mut" style="margin:10px 0 0">Les dépenses représentent <b>${Math.round(to/ti*100)} %</b> des ${m.own?"revenus":"entrées"} de la période.</p>`:""}
+  <p class="mut" style="margin:6px 0 0">Solde ${m.own?"familial":"du comité"} à la fin de la période : <b>${f(cum)}</b></p></div>`;
+  let bud="";
+  if(m.bud&&s.rm!=="all"){
+    const mult=s.rm==="y"?12:1,rows=fall(m,"out").filter(c=>s.budget[c]).map(c=>{const b=s.budget[c]*mult,t=sum(O.filter(x=>x.c===c),per);return `<div class="row"><div>${esc(c)}<div class="pb ${t>b?"over":""}"><i style="width:${Math.min(100,t/b*100)}%"></i></div><small>Dépensé ${f(t)} sur ${f(b)}${t>b?" — dépassé de "+f(t-b):" — reste "+f(b-t)}</small></div></div>`}).join("");
+    if(rows)bud=`<div class="card"><h2>Budget ${s.rm==="y"?"annuel":"du mois"}</h2>${s.rm==="y"?'<p class="mut">Budget mensuel multiplié par 12.</p>':""}${rows}</div>`;
+  }
   let det="";
-  if(CSM==="y"){
+  if(s.rm==="y"){
     const y=per,mi=[],mo=[];for(let i=1;i<=12;i++){const k=y+"-"+String(i).padStart(2,"0");mi.push(sum(I,k));mo.push(sum(O,k))}
     const mx=Math.max(1,...mi,...mo),L="JFMAMJJASOND";
-    det=`<div class="card"><h2>Mois par mois</h2><div class="ch">${mi.map((v,i)=>`<div class="col"><div class="bars"><i class="bi" style="height:${v/mx*100}%"></i><i class="bo" style="height:${mo[i]/mx*100}%"></i></div><small>${L[i]}</small></div>`).join("")}</div><div class="lg"><b class="bi"></b>Entrées<b class="bo"></b>Dépenses</div></div>`;
-    det+=`<div class="card"><h2>Détail par mois</h2><div style="overflow-x:auto"><table class="num"><tr class="t"><td>Mois</td><td>Entrées</td><td>Dépenses</td><td>Solde</td></tr>${mi.map((v,i)=>`<tr><td>${MN[i]}</td><td>${nf0(v)}</td><td>${nf0(mo[i])}</td><td>${nf0(v-mo[i])}</td></tr>`).join("")}<tr class="t"><td>Total</td><td>${nf0(ti)}</td><td>${nf0(to)}</td><td>${nf0(ti-to)}</td></tr></table></div><p class="mut" style="margin:8px 0 0">Montants en FCFA.</p></div>`;
-  }else if(CSM==="all"){
-    const ys=[...new Set(CST.entries.map(x=>x.d.slice(0,4)))].sort();
-    det=`<div class="card"><h2>Détail par année</h2><div style="overflow-x:auto"><table class="num"><tr class="t"><td>Année</td><td>Entrées</td><td>Dépenses</td><td>Solde</td></tr>${ys.map(y=>`<tr><td>${y}</td><td>${nf0(sum(I,y))}</td><td>${nf0(sum(O,y))}</td><td>${nf0(sum(I,y)-sum(O,y))}</td></tr>`).join("")||'<tr><td class="mut" colspan="4">Aucune donnée</td></tr>'}<tr class="t"><td>Total</td><td>${nf0(ti)}</td><td>${nf0(to)}</td><td>${nf0(ti-to)}</td></tr></table></div><p class="mut" style="margin:8px 0 0">Montants en FCFA.</p></div>`;
+    det=`<div class="card"><h2>Mois par mois</h2><div class="ch">${mi.map((v,i)=>`<div class="col"><div class="bars"><i class="bi" style="height:${v/mx*100}%"></i><i class="bo" style="height:${mo[i]/mx*100}%"></i></div><small>${L[i]}</small></div>`).join("")}</div><div class="lg"><b class="bi"></b>${m.own?"Revenus":"Entrées"}<b class="bo"></b>Dépenses</div></div>
+    <div class="card"><h2>Détail par mois</h2><div style="overflow-x:auto"><table class="num"><tr class="t"><td>Mois</td><td>${m.own?"Revenus":"Entrées"}</td><td>Dépenses</td><td>Solde</td></tr>${mi.map((v,i)=>`<tr><td>${MN[i]}</td><td>${nf0(v)}</td><td>${nf0(mo[i])}</td><td>${nf0(v-mo[i])}</td></tr>`).join("")}<tr class="t"><td>Total</td><td>${nf0(ti)}</td><td>${nf0(to)}</td><td>${nf0(ti-to)}</td></tr></table></div><p class="mut" style="margin:8px 0 0">Montants en FCFA.</p></div>`;
+  }else if(s.rm==="all"){
+    const ys=[...new Set(s.entries.map(x=>x.d.slice(0,4)))].sort();
+    det=`<div class="card"><h2>Détail par année</h2><div style="overflow-x:auto"><table class="num"><tr class="t"><td>Année</td><td>${m.own?"Revenus":"Entrées"}</td><td>Dépenses</td><td>Solde</td></tr>${ys.map(y=>`<tr><td>${y}</td><td>${nf0(sum(I,y))}</td><td>${nf0(sum(O,y))}</td><td>${nf0(sum(I,y)-sum(O,y))}</td></tr>`).join("")||'<tr><td class="mut" colspan="4">Aucune donnée</td></tr>'}<tr class="t"><td>Total</td><td>${nf0(ti)}</td><td>${nf0(to)}</td><td>${nf0(ti-to)}</td></tr></table></div><p class="mut" style="margin:8px 0 0">Montants en FCFA.</p></div>`;
   }else{
-    const r=crows(per);
+    const r=frows(m,per);
     det=`<div class="card"><h2>Opérations du mois</h2>${r.length?`<div style="overflow-x:auto"><table class="num"><tr class="t"><td>Date</td><td>Rubrique</td><td>Montant</td></tr>${r.map(x=>`<tr><td>${fd(x.d)}</td><td style="text-align:left">${esc(x.c)}${x.n?` <small class="mut">· ${esc(x.n)}</small>`:""}</td><td class="${x.kind==="in"?"amt in":"amt out"}">${x.kind==="in"?"+":"−"} ${nf0(x.a)}</td></tr>`).join("")}</table></div><p class="mut" style="margin:8px 0 0">Montants en FCFA.</p>`:'<p class="mut">Aucune opération ce mois-ci.</p>'}</div>`;
   }
-  const exp=`<div class="card noprint"><h2>Partager et exporter</h2><p><button class="sec" data-a="pr">Imprimer ou enregistrer en PDF</button><button class="sec" data-a="cexp">Exporter vers Excel (.xlsx)</button></p>
-  <p class="mut">Le résumé WhatsApp contient les totaux et les rubriques, sans noms de donateurs.</p><textarea id="crtxt" readonly rows="8">${esc(crepText())}</textarea>
-  <p style="margin:10px 0 0"><button class="sec" data-a="cwa">Envoyer par WhatsApp</button><button class="sec" data-a="cwc">Copier le texte</button></p></div>`;
-  return sw+bar+top+`<div class="card"><h2>Entrées par rubrique</h2>${cbars(cbrk(I,"in",per),ti)}</div><div class="card"><h2>Dépenses par rubrique</h2>${cbars(cbrk(O,"out",per),to)}</div>`+det+exp;
+  const exp=`<div class="card noprint"><h2>Partager et exporter</h2><p><button class="sec" data-a="pr">Imprimer ou enregistrer en PDF</button><button class="sec" data-a="fexp" data-m="${m.k}">Exporter vers Excel (.xlsx)</button></p>
+  ${m.own?"":`<p class="mut">Le résumé WhatsApp contient les totaux et les rubriques, sans noms de donateurs.</p><textarea id="ftxt" readonly rows="8">${esc(frepText(m))}</textarea>
+  <p style="margin:10px 0 0"><button class="sec" data-a="fwa" data-m="${m.k}">Envoyer par WhatsApp</button><button class="sec" data-a="fwc" data-m="${m.k}">Copier le texte</button></p>`}</div>`;
+  return sw+bar+top+bud+`<div class="card"><h2>${m.own?"Revenus":"Entrées"} par rubrique</h2>${fbars(fbrk(m,I,"in",per),ti)}</div><div class="card"><h2>Dépenses par rubrique</h2>${fbars(fbrk(m,O,"out",per),to)}</div>`+det+exp;
 }
-function crepText(){
-  const per=cper(),I=cin(),O=cout(),ti=sum(I,per),to=sum(O,per),tot=sum(I)-sum(O);
-  const L=["*Comité de construction*","🏗️ "+(S.name||"Église"),"📊 Bilan de "+clabel(),"","✅ Entrées : *"+nf0(ti)+" FCFA*","🔻 Dépenses : *"+nf0(to)+" FCFA*","💰 Solde de la période : *"+nf0(ti-to)+" FCFA*"];
-  const ri=cbrk(I,"in",per);if(ri.length){L.push("","*Entrées par rubrique*");ri.forEach(r=>L.push("• "+r[0]+" : "+nf0(r[1])+" FCFA"))}
-  const ro=cbrk(O,"out",per);if(ro.length){L.push("","*Dépenses par rubrique*");ro.forEach(r=>L.push("• "+r[0]+" : "+nf0(r[1])+" FCFA ("+(to?Math.round(r[1]/to*100):0)+" %)"))}
+function frepText(m){
+  const per=fper(m),I=fE(m,"in"),O=fE(m,"out"),ti=sum(I,per),to=sum(O,per),tot=sum(I)-sum(O);
+  const L=["*"+m.name+"*","🏗️ "+(S.name||"Église"),"📊 Bilan de "+flabel(m),"","✅ Entrées : *"+nf0(ti)+" FCFA*","🔻 Dépenses : *"+nf0(to)+" FCFA*","💰 Solde de la période : *"+nf0(ti-to)+" FCFA*"];
+  const ri=fbrk(m,I,"in",per);if(ri.length){L.push("","*Entrées par rubrique*");ri.forEach(r=>L.push("• "+r[0]+" : "+nf0(r[1])+" FCFA"))}
+  const ro=fbrk(m,O,"out",per);if(ro.length){L.push("","*Dépenses par rubrique*");ro.forEach(r=>L.push("• "+r[0]+" : "+nf0(r[1])+" FCFA ("+(to?Math.round(r[1]/to*100):0)+" %)"))}
   L.push("","🏦 Solde du comité depuis le début : *"+nf0(tot)+" FCFA*","","_Envoyé le "+fd(today())+" depuis l’appli de finances._");
   return L.join("\n");
 }
 function dlb(blob,name){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}
-function cexp(){
-  const per=cper(),rows=crows(per);
+function fexp(m){
+  const per=fper(m),rows=frows(m,per);
   if(!rows.length){ERR="Aucune opération à exporter pour cette période.";render();return}
-  const I=cin(),O=cout(),ti=sum(I,per),to=sum(O,per);
+  const I=fE(m,"in"),O=fE(m,"out"),ti=sum(I,per),to=sum(O,per),en=m.own?"Revenu":"Entrée";
   const sm=[["Rubrique","Type","Montant (FCFA)","% du type"]];
-  cbrk(I,"in",per).forEach(r=>sm.push([r[0],"Entrée",r[1],ti?Math.round(r[1]/ti*100)+" %":""]));
-  sm.push(["Total des entrées","",ti,""]);
-  cbrk(O,"out",per).forEach(r=>sm.push([r[0],"Dépense",r[1],to?Math.round(r[1]/to*100)+" %":""]));
+  fbrk(m,I,"in",per).forEach(r=>sm.push([r[0],en,r[1],ti?Math.round(r[1]/ti*100)+" %":""]));
+  sm.push(["Total "+(m.own?"des revenus":"des entrées"),"",ti,""]);
+  fbrk(m,O,"out",per).forEach(r=>sm.push([r[0],"Dépense",r[1],to?Math.round(r[1]/to*100)+" %":""]));
   sm.push(["Total des dépenses","",to,""],["Solde de la période","",ti-to,""]);
-  const dt=[["Date","Type","Rubrique","Montant (FCFA)","Détail","Enregistré par"]];
-  rows.forEach(x=>dt.push([fd(x.d),x.kind==="in"?"Entrée":"Dépense",x.c,+x.a,x.n||"",x.par||""]));
-  dlb(buildXlsx([{name:"Bilan",rows:sm},{name:"Détail",rows:dt}]),"comite-construction-"+(per||"complet")+".xlsx");
+  const dt=[["Date","Type","Rubrique","Montant (FCFA)","Détail"].concat(m.own?[]:["Enregistré par"])];
+  rows.forEach(x=>dt.push([fd(x.d),x.kind==="in"?en:"Dépense",x.c,+x.a,x.n||""].concat(m.own?[]:[x.par||""])));
+  dlb(buildXlsx([{name:"Bilan",rows:sm},{name:"Détail",rows:dt}]),m.file+"-"+(per||"complet")+".xlsx");
 }
-function cstView(){
-  if(CST.err==="SETUP")return `<div class="card"><h2>🏗️ Comité de construction</h2><p>Cette rubrique n’est pas encore activée sur le serveur.</p><p class="mut">Lance le fichier <b>comite-construction.sql</b> dans Supabase (projet finances-eglise), puis reviens ici.</p><button class="sec" data-a="cr">Réessayer</button></div>`;
-  if(CST.err)return `<div class="card" style="color:var(--bad)">${esc(CST.err)}</div><button class="sec" data-a="cr">Réessayer</button>`;
-  if(!CST.ok)return `<div class="card"><h2>🏗️ Comité de construction</h2><p class="mut">Chargement…</p></div>`;
-  const ti=sum(cin()),to=sum(cout());
-  const hero=`<div class="hero"><small>🏗️ Comité de construction · à part de la caisse de l’église</small><div class="big">${nf0(ti-to)}<i>FCFA</i></div>
-  <div class="sub2"><div><small><span class="dot" style="background:var(--ok)">${svg("in",12)}</span>Entrées</small><b>${f(ti)}</b></div><div><small><span class="dot" style="background:var(--out)">${svg("out",12)}</span>Dépenses</small><b>${f(to)}</b></div></div>
-  <div class="foot"><span>Solde du comité depuis le début</span><b>${f(ti-to)}</b></div></div>`;
-  const body=CSV==="e"?clist("in"):CSV==="d"?clist("out"):CSV==="r"?crep():`<div class="card"><h2>Rubriques du comité</h2><p class="mut">Tu choisis toi-même les noms : types de dépenses (ciment, fer, main-d’œuvre…) et sources d’entrées. ${S.me.principal?"":"Seul l’administrateur principal peut renommer ou retirer une rubrique."}</p></div>`+ccatsCard("out")+ccatsCard("in");
-  return hero+cseg()+body;
+function modView(m){
+  const s=FS[m.k];
+  if(s.err==="SETUP")return `<div class="card"><h2>${m.ic} ${m.name}</h2><p>Cette rubrique n’est pas encore activée sur le serveur.</p><p class="mut">Lance le fichier <b>${m.file}.sql</b> dans Supabase (projet finances-eglise), puis reviens ici.</p><button class="sec" data-a="fr" data-m="${m.k}">Réessayer</button></div>`;
+  if(s.err)return `<div class="card" style="color:var(--bad)">${esc(s.err)}</div><button class="sec" data-a="fr" data-m="${m.k}">Réessayer</button>`;
+  if(m.own&&!FAMCODE){
+    if(s.setup===null)return `<div class="card"><h2>${m.ic} ${m.name}</h2><p class="mut">Chargement…</p></div>`;
+    return s.setup
+      ?`<form class="card" data-f="famset"><h2>🔒 ${m.name}</h2><p class="mut">Cette rubrique est privée : les autres administrateurs ne peuvent ni la voir ni l’ouvrir. Crée ton code personnel, différent de ton code administrateur.</p>
+      <label>Code du budget familial (6 caractères minimum)<input type="password" name="c" minlength="6" required autocomplete="new-password"></label>
+      <label>Confirme le code<input type="password" name="c2" minlength="6" required autocomplete="new-password"></label>${s.msg?`<p style="color:var(--bad)">${esc(s.msg)}</p>`:""}
+      <button class="pri">Créer mon code</button><p class="mut" style="margin:10px 0 0">Note-le bien : en cas d’oubli, il faut le réinitialiser dans Supabase.</p></form>`
+      :`<form class="card" data-f="famopen"><h2>🔒 ${m.name}</h2><p class="mut">Entre ton code personnel pour ouvrir cette rubrique privée.</p>
+      <label>Code du budget familial<input type="password" name="c" required autocomplete="off"></label>${s.msg?`<p style="color:var(--bad)">${esc(s.msg)}</p>`:""}<button class="pri">Ouvrir</button></form>`;
+  }
+  if(!s.ok)return `<div class="card"><h2>${m.ic} ${m.name}</h2><p class="mut">Chargement…</p></div>`;
+  const ti=sum(fE(m,"in")),to=sum(fE(m,"out")),en=m.own?"Revenus":"Entrées";
+  const hero=`<div class="hero"><small>${m.ic} ${m.name} · ${m.sub}</small><div class="big">${nf0(ti-to)}<i>FCFA</i></div>
+  <div class="sub2"><div><small><span class="dot" style="background:var(--ok)">${svg("in",12)}</span>${en}</small><b>${f(ti)}</b></div><div><small><span class="dot" style="background:var(--out)">${svg("out",12)}</span>Dépenses</small><b>${f(to)}</b></div></div>
+  <div class="foot"><span>Solde ${m.own?"familial":"du comité"} depuis le début</span><b>${f(ti-to)}</b></div></div>`;
+  const lock=m.own?`<p class="noprint" style="margin:0 0 12px"><button class="sec" data-a="flock" data-m="${m.k}" style="margin:0">🔒 Verrouiller</button></p>`:"";
+  let body;
+  if(s.v==="e")body=flist(m,"in");
+  else if(s.v==="d")body=flist(m,"out");
+  else if(s.v==="r")body=frep(m);
+  else if(m.own)body=fbudgetCard(m)+fcatsCard(m,"out")+fcatsCard(m,"in")+`<form class="card" data-f="famchg"><h2>Changer mon code</h2><label>Code actuel<input type="password" name="o" required autocomplete="off"></label><label>Nouveau code (6 caractères minimum)<input type="password" name="n" minlength="6" required autocomplete="new-password"></label><button class="sec">Changer le code</button></form>`;
+  else body=`<div class="card"><h2>Rubriques du comité</h2><p class="mut">Tu choisis toi-même les noms : types de dépenses (ciment, fer, main-d’œuvre…) et sources d’entrées. ${S.me.principal?"":"Seul l’administrateur principal peut renommer ou retirer une rubrique."}</p></div>`+fcatsCard(m,"out")+fcatsCard(m,"in");
+  return hero+lock+fseg(m)+body;
 }
 function render(){
   if(!S.me){$("#app").innerHTML=login();$("#tabs").style.display="none";$("#bell").style.display="none";return}
   $("#tabs").style.display="";$("#bell").style.display="";
-  $("#app").innerHTML=(ERR?`<div class="card" style="color:var(--bad)">${esc(ERR)}</div>`:"")+(MORE.includes(tab)?'<button class="sec" data-t="plus" style="margin:0 0 12px">‹ Plus</button>':"")+{home:home,in:()=>list("in"),out:()=>list("out"),bud:budget,proj:proj,jr:journal,plus:plusMenu,rep:rep,cst:cstView}[tab]();
+  $("#app").innerHTML=(ERR?`<div class="card" style="color:var(--bad)">${esc(ERR)}</div>`:"")+(MORE.includes(tab)?'<button class="sec" data-t="plus" style="margin:0 0 12px">‹ Plus</button>':"")+{home:home,in:()=>list("in"),out:()=>list("out"),bud:budget,proj:proj,jr:journal,plus:plusMenu,rep:rep,cst:()=>modView(FM.c),fam:()=>modView(FM.f)}[tab]();
   $("#tabs").innerHTML=NAV.map(t=>{const on=t[0]===tab||(t[0]==="plus"&&MORE.includes(tab));return `<button data-t="${t[0]}" class="${on?"on":""}"${on?' aria-current="page"':""}>${svg(t[0])}${t[1]}</button>`}).join("");
   $("#ttl").textContent=S.name||"Caisse de l’Église";
 }
 
 document.addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
-  if(b.dataset.t){tab=b.dataset.t;ED=null;REN=null;CED=null;CREN=null;ERR="";NOTE=null;drawNote();render();scrollTo(0,0);if(tab==="cst")loadCst();return}
+  if(b.dataset.t){tab=b.dataset.t;ED=null;REN=null;FS.c.ed=FS.c.ren=FS.f.ed=FS.f.ren=null;ERR="";NOTE=null;drawNote();render();scrollTo(0,0);const mm=modByTab(tab);if(mm)loadMod(mm);return}
   const a=b.dataset.a;
   if(a==="ed"){const x=S[b.dataset.k].find(y=>y.id===b.dataset.id);if(!x)return;ED={k:b.dataset.k,id:x.id};render();const fm=$("form[data-f]");fm.d.value=x.d;if(![...fm.c.options].some(o=>o.value===x.c))fm.c.add(new Option(x.c,x.c));fm.c.value=x.c;fm.a.value=x.a;fm.n.value=x.n||"";fm.querySelector(".pri").textContent="Enregistrer la modification";fm.scrollIntoView();return}
   if(a==="pm"||a==="nm"){const p=month.split("-").map(Number);month=ym(new Date(p[0],p[1]-1+(a==="nm"?1:-1),1));render();return}
@@ -642,27 +693,32 @@ document.addEventListener("click",e=>{
   if(a==="vs"){speak("Administrateur principal a ajouté une entrée");return}
   if(a==="nc"){try{navigator.clipboard.writeText(NTF);b.textContent="Copié"}catch(x){}return}
   if(a==="nx"){disablePush();return}
-  if(a==="lo"){CST={entries:[],cats:[],ok:false,err:""};try{localStorage.removeItem("fin-cache")}catch(x){}NTF="";NTM="";NOTE=null;drawNote();try{localStorage.removeItem("fin-code")}catch(x){}CODE="";S.me=null;ERR="";render();return}
-  if(a==="cv"){CSV=b.dataset.v;CED=null;CREN=null;ERR="";render();return}
-  if(a==="cm"){CSM=b.dataset.v;render();return}
-  if(a==="cr"){CST.err="";CST.ok=false;render();loadCst();return}
-  if(a==="cpm"||a==="cnm"){const p=cmonth.split("-").map(Number);cmonth=ym(new Date(p[0],p[1]-1+(a==="cnm"?1:-1),1));render();return}
-  if(a==="cpy"||a==="cny"){cmonth=(+cmonth.slice(0,4)+(a==="cny"?1:-1))+cmonth.slice(4);render();return}
-  if(a==="crn"){CREN={k:b.dataset.k,n:b.dataset.n};render();setTimeout(()=>{const i=document.querySelector('#app form[data-f="ccren"] input');if(i){i.focus();i.select()}},0);return}
-  if(a==="crc"){CREN=null;render();return}
-  if(a==="cexp"){cexp();return}
-  if(a==="cwa"){window.open("https://wa.me/?text="+encodeURIComponent(crepText()),"_blank");return}
-  if(a==="cwc"){try{navigator.clipboard.writeText(crepText());b.textContent="Copié"}catch(x){const e=$("#crtxt");if(e)e.select()}return}
-  if(a==="ced"){const x=CST.entries.find(y=>y.id===b.dataset.id);if(!x)return;CED={k:x.kind,id:x.id};CSV=x.kind==="in"?"e":"d";render();const fm=$("form[data-f]");fm.d.value=x.d;if(![...fm.c.options].some(o=>o.value===x.c))fm.c.add(new Option(x.c,x.c));fm.c.value=x.c;fm.a.value=x.a;fm.n.value=x.n||"";fm.querySelector(".pri").textContent="Enregistrer la modification";fm.scrollIntoView();return}
-  if(a==="del"||a==="dp"||a==="up"||a==="da"||a==="dc"||a==="cdel"||a==="cdc"){
+  if(a==="lo"){FAMCODE="";FS={c:newFS(),f:newFS()};try{localStorage.removeItem("fin-cache")}catch(x){}NTF="";NTM="";NOTE=null;drawNote();try{localStorage.removeItem("fin-code")}catch(x){}CODE="";S.me=null;ERR="";render();return}
+  const mm=b.dataset.m?FM[b.dataset.m]:null;
+  if(mm){
+    const s=FS[mm.k];
+    if(a==="fv"){s.v=b.dataset.v;s.ed=null;s.ren=null;ERR="";render();return}
+    if(a==="fm"){s.rm=b.dataset.v;render();return}
+    if(a==="fr"){s.err="";s.ok=false;render();loadMod(mm);return}
+    if(a==="fpm"||a==="fnm"){const p=s.mo.split("-").map(Number);s.mo=ym(new Date(p[0],p[1]-1+(a==="fnm"?1:-1),1));render();return}
+    if(a==="fpy"||a==="fny"){s.mo=(+s.mo.slice(0,4)+(a==="fny"?1:-1))+s.mo.slice(4);render();return}
+    if(a==="frn"){s.ren={k:b.dataset.k,n:b.dataset.n};render();setTimeout(()=>{const i=document.querySelector('#app form[data-f="fren"] input');if(i){i.focus();i.select()}},0);return}
+    if(a==="frc"){s.ren=null;render();return}
+    if(a==="fexp"){fexp(mm);return}
+    if(a==="fwa"){window.open("https://wa.me/?text="+encodeURIComponent(frepText(mm)),"_blank");return}
+    if(a==="fwc"){try{navigator.clipboard.writeText(frepText(mm));b.textContent="Copié"}catch(x){const e=$("#ftxt");if(e)e.select()}return}
+    if(a==="flock"){FAMCODE="";FS.f=newFS();render();loadMod(FM.f);return}
+    if(a==="fed"){const x=s.entries.find(y=>y.id===b.dataset.id);if(!x)return;s.ed={k:x.kind,id:x.id};s.v=x.kind==="in"?"e":"d";render();const f2=$("form[data-f]");f2.d.value=x.d;if(![...f2.c.options].some(o=>o.value===x.c))f2.c.add(new Option(x.c,x.c));f2.c.value=x.c;f2.a.value=x.a;f2.n.value=x.n||"";f2.querySelector(".pri").textContent="Enregistrer la modification";f2.scrollIntoView();return}
+  }
+  if(a==="del"||a==="dp"||a==="up"||a==="da"||a==="dc"||a==="fdel"||a==="fdc"){
     if(!b.classList.contains("arm")){const t=b.textContent;b.classList.add("arm");b.textContent="Confirmer ?";setTimeout(()=>{b.classList.remove("arm");b.textContent=t},3000);return}
     if(a==="del")act("fin_delete_entry",{p_id:b.dataset.id});
     if(a==="dp")act("fin_delete_project",{p_id:b.dataset.id});
     if(a==="up"){const p=S.proj.find(p=>p.id===b.dataset.id);p&&p.pay.length&&act("fin_delete_payment",{p_id:p.pay[p.pay.length-1].id})}
     if(a==="da")act("fin_delete_admin",{p_id:b.dataset.id});
     if(a==="dc")act("fin_delete_cat",{p_kind:b.dataset.k,p_nom:b.dataset.n});
-    if(a==="cdel")cact("cst_delete_entry",{p_id:b.dataset.id});
-    if(a==="cdc")cact("cst_del_cat",{p_kind:b.dataset.k,p_nom:b.dataset.n});
+    if(a==="fdel")fact(FM[b.dataset.m],"delete_entry",{p_id:b.dataset.id});
+    if(a==="fdc")fact(FM[b.dataset.m],"del_cat",{p_kind:b.dataset.k,p_nom:b.dataset.n});
   }
 });
 document.addEventListener("submit",async e=>{
@@ -670,18 +726,22 @@ document.addEventListener("submit",async e=>{
   if(k==="login"){CODE=v.c.trim();ERR="";try{await loadAll();try{localStorage.setItem("fin-code",CODE)}catch(x){}}catch(x){ERR=x.message;CODE=""}render()}
   else if(k==="in"||k==="out"){const x=ED&&ED.k===k?ED.id:null;month=v.d.slice(0,7);LASTD=v.d;ED=null;
     x?await act("fin_update_entry",{p_id:x,p_d:v.d,p_c:v.c,p_a:+v.a,p_n:v.n.trim()}):await addEntry(k,v)}
-  else if(k==="cin"||k==="cout"){
-    const kind=k.slice(1),nc=(v.nc||"").trim(),c=nc||v.c;
+  else if(k==="fent"){
+    const m=FM[f.dataset.m],s=FS[m.k],kind=f.dataset.k,nc=(v.nc||"").trim(),c=nc||v.c;
     if(!c){ERR="Choisis ou crée une rubrique.";render();return}
-    const x=CED&&CED.k===kind?CED.id:null;cmonth=v.d.slice(0,7);CLASTD=v.d;CED=null;ERR="";
+    const x=s.ed&&s.ed.k===kind?s.ed.id:null;s.mo=v.d.slice(0,7);s.lastd=v.d;s.ed=null;ERR="";
     try{
-      if(nc&&!ccats(kind).includes(nc))await rpc("cst_add_cat",{p_kind:kind,p_nom:nc});
-      x?await rpc("cst_update_entry",{p_id:x,p_d:v.d,p_c:c,p_a:+v.a,p_n:(v.n||"").trim()}):await rpc("cst_add_entry",{p_kind:kind,p_d:v.d,p_c:c,p_a:+v.a,p_n:(v.n||"").trim(),p_cid:uid()+uid()});
-      await loadCst();
-    }catch(e){ERR=e.net?"Pas de connexion : cette action nécessite internet.":e.message;render()}
+      if(nc&&!fcats(m,kind).includes(nc))await frpc(m,"add_cat",{p_kind:kind,p_nom:nc});
+      x?await frpc(m,"update_entry",{p_id:x,p_d:v.d,p_c:c,p_a:+v.a,p_n:(v.n||"").trim()}):await frpc(m,"add_entry",{p_kind:kind,p_d:v.d,p_c:c,p_a:+v.a,p_n:(v.n||"").trim(),p_cid:uid()+uid()});
+      await loadMod(m);
+    }catch(e){ERR=e.net?"Pas de connexion : cette action nécessite internet.":e.message;if(m.own&&badFam(e)){FAMCODE="";FS.f=newFS();FS.f.setup=false;FS.f.msg="Code incorrect."}render()}
   }
-  else if(k==="ccat")await cact("cst_add_cat",{p_kind:f.dataset.k,p_nom:v.n.trim()});
-  else if(k==="ccren"){CREN=null;await cact("cst_rename_cat",{p_kind:f.dataset.k,p_old:f.dataset.n,p_new:v.n.trim()})}
+  else if(k==="fcat")await fact(FM[f.dataset.m],"add_cat",{p_kind:f.dataset.k,p_nom:v.n.trim()});
+  else if(k==="fren"){const m=FM[f.dataset.m];FS[m.k].ren=null;await fact(m,"rename_cat",{p_kind:f.dataset.k,p_old:f.dataset.n,p_new:v.n.trim()})}
+  else if(k==="famset"){const s=FS.f;if(v.c!==v.c2){s.msg="Les deux codes ne sont pas identiques.";render();return}
+    s.msg="";ERR="";try{await rpc("fam_set_code",{p_new:v.c});FAMCODE=v.c;s.setup=false;await loadMod(FM.f)}catch(e){s.msg=e.message;render()}}
+  else if(k==="famopen"){FS.f.msg="";FAMCODE=v.c;await loadMod(FM.f)}
+  else if(k==="famchg"){ERR="";try{await rpc("fam_change_code",{p_old:v.o,p_new:v.n});FAMCODE=v.n;SMSG="Code du budget familial modifié.";setTimeout(()=>{SMSG="";drawOff()},6000);drawOff()}catch(e){ERR=e.message}render()}
   else if(k==="proj")await act("fin_add_project",{p_n:v.n.trim(),p_k:v.k,p_t:+v.a});
   else if(k==="pay")await act("fin_add_payment",{p_project:f.dataset.id,p_d:v.d,p_a:+v.a,p_n:(v.n||"").trim()});
   else if(k==="cat")await act("fin_add_cat",{p_kind:f.dataset.k,p_nom:v.n.trim()});
@@ -692,7 +752,8 @@ document.addEventListener("submit",async e=>{
 document.addEventListener("change",e=>{
   const t=e.target;
   if(t.id==="mo"&&t.value){month=t.value;render()}
-  else if(t.id==="cmo"&&t.value){cmonth=t.value;render()}
+  else if(t.dataset.fmo&&t.value){FS[t.dataset.fmo].mo=t.value;render()}
+  else if(t.dataset.fb!==undefined&&t.dataset.m){fact(FM[t.dataset.m],"set_budget",{p_cat:t.dataset.fb,p_amount:+t.value||0})}
   else if(t.dataset.b)act("fin_set_budget",{p_cat:t.dataset.b,p_amount:+t.value||0});
   else if(t.dataset.nm!==undefined)act("fin_set_name",{p_name:t.value.trim()});
 });
@@ -705,7 +766,7 @@ window.addEventListener("offline",()=>{OFFLINE=true;drawOff()});
 setInterval(async()=>{if(!S.me||document.hidden)return;
   if(UPD&&!isBusy()){applyUpd();return}
   try{await syncQ();await loadAll();OFFLINE=false;drawOff()}catch(e){if(e.net){OFFLINE=true;drawOff()}return}
-  if(tab==="cst"&&!isBusy())await loadCst();
+  {const mm=modByTab(tab);if(mm&&!isBusy()&&(!mm.own||FAMCODE))await loadMod(mm)}
   if(!isBusy())render();
   chkUpdate()},20000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){chkUpdate();syncQ()}});
